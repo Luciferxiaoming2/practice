@@ -39,15 +39,15 @@ flutter run
 
 ## ⚠️ 需要手动配置的内容
 
-### 1. 创建第一个管理员账号
-后端启动后，访问 `http://localhost:8000/docs`，调用 `POST /users/` 创建初始管理员：
-```json
-{
-  "username": "admin",
-  "full_name": "管理员",
-  "password": "your_password",
-  "is_admin": true
-}
+### 1. 默认超级管理员账号
+| 账号 | 密码 | 角色 |
+|------|------|------|
+| `admin` | `admin123` | 管理员 |
+
+如需重新创建，可运行脚本：
+```bash
+cd backend
+python scripts/create_admin.py
 ```
 
 ### 2. 后端安全密钥（生产环境必须修改）

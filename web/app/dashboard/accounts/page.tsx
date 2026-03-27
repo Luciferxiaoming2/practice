@@ -1,66 +1,36 @@
 "use client"
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Plus, RotateCcw, ScanFace, Loader2, Settings } from "lucide-react"
+import { Plus, RotateCcw, ScanFace, Loader2, Settings, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion"
-import { getUsers, createUser, resetPassword, resetFace, updateUser, type User } from "@/lib/api"
+import { getUsers, createUser, resetPassword, resetFace, updateUser, getRoles, type User, type Role } from "@/lib/api"
 
 export default function AccountsPage() {
   const [users, setUsers] = useState<User[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
+  const [editUser, setEditUser] = useState<User | null>(null)
   const [showReset, setShowReset] = useState<{ id: number; name: string } | null>(null)
   const [showRules, setShowRules] = useState<User | null>(null)
   const [newPwd, setNewPwd] = useState("")
-  const [form, setForm] = useState({ username: "", full_name: "", password: "", confirm: "" })
   const [submitting, setSubmitting] = useState(false)
-  const [msg, setMsg] = useState("")
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-
-  function validateForm() {
-    const errors: Record<string, string> = {}
-    if (form.username.length < 3) errors.username = "账号至少 3 个字符"
-    if (!/^[a-zA-Z0-9_]+$/.test(form.username)) errors.username = "账号只能包含字母、数字和下划线"
-    if (form.full_name.trim().length < 2) errors.full_name = "姓名至少 2 个字符"
-    if (form.password.length < 8) errors.password = "密码至少 8 位"
-    else if (!/[A-Za-z]/.test(form.password)) errors.password = "密码需包含至少 1 个字母"
-    else if (!/[0-9]/.test(form.password)) errors.password = "密码需包含至少 1 个数字"
-    if (form.confirm !== form.password) errors.confirm = "两次密码不一致"
-    return errors
-  }
 
   async function load() {
     try {
-      setUsers(await getUsers())
+      const [u, r] = await Promise.all([getUsers(), getRoles()])
+      setUsers(u)
+      setRoles(r)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => { load() }, [])
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    setMsg("")
-    const errors = validateForm()
-    if (Object.keys(errors).length > 0) { setFieldErrors(errors); return }
-    setFieldErrors({})
-    setSubmitting(true)
-    try {
-      await createUser({ username: form.username, full_name: form.full_name, password: form.password })
-      setShowCreate(false)
-      setForm({ username: "", full_name: "", password: "", confirm: "" })
-      load()
-    } catch {
-      setMsg("创建失败，账号可能已存在")
-    } finally {
-      setSubmitting(false)
-    }
-  }
 
   async function handleResetPwd(e: React.FormEvent) {
     e.preventDefault()
@@ -87,7 +57,7 @@ export default function AccountsPage() {
           <h1 className="text-2xl font-bold">账户管理</h1>
           <p className="text-muted-foreground text-sm mt-0.5">新建、编辑账户及打卡规则配置</p>
         </div>
-        <Button leftIcon={<Plus size={16} />} onClick={() => { setShowCreate(true); setMsg(""); setFieldErrors({}) }}>
+        <Button leftIcon={<Plus size={16} />} onClick={() => setShowCreate(true)}>
           新建账户
         </Button>
       </motion.div>
@@ -111,6 +81,7 @@ export default function AccountsPage() {
                   <tr className="border-b border-border text-muted-foreground text-xs">
                     <th className="px-5 py-3 text-left font-medium">账号</th>
                     <th className="px-5 py-3 text-left font-medium">姓名</th>
+                    <th className="px-5 py-3 text-left font-medium">角色</th>
                     <th className="px-5 py-3 text-left font-medium">状态</th>
                     <th className="px-5 py-3 text-left font-medium">人脸</th>
                     <th className="px-5 py-3 text-left font-medium">操作</th>
@@ -121,6 +92,11 @@ export default function AccountsPage() {
                     <motion.tr key={u.id} variants={staggerItem} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
                       <td className="px-5 py-3 font-mono text-xs">{u.username}</td>
                       <td className="px-5 py-3">{u.full_name}</td>
+                      <td className="px-5 py-3">
+                        <Badge variant={u.is_admin ? "default" : "outline"}>
+                          {u.role?.name ?? (u.is_admin ? "管理员" : "普通用户")}
+                        </Badge>
+                      </td>
                       <td className="px-5 py-3">
                         <Badge variant={u.is_active ? "success" : "warning"}>
                           {u.is_active ? "已激活" : "待激活"}
@@ -133,6 +109,10 @@ export default function AccountsPage() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex gap-2">
+                          <Button size="sm" variant="outline" leftIcon={<Pencil size={12} />}
+                            onClick={() => setEditUser(u)}>
+                            编辑
+                          </Button>
                           <Button size="sm" variant="outline" leftIcon={<Settings size={12} />}
                             onClick={() => setShowRules(u)}>
                             规则
@@ -158,39 +138,12 @@ export default function AccountsPage() {
 
       {/* 新建账户弹窗 */}
       {showCreate && (
-        <Modal title="新建账户" onClose={() => setShowCreate(false)}>
-          <form className="space-y-3" onSubmit={handleCreate}>
-            <Field label="账号" error={fieldErrors.username}>
-              <Input placeholder="字母/数字/下划线，至少 3 位" value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                className={fieldErrors.username ? "border-destructive focus-visible:ring-destructive" : ""}
-                required />
-            </Field>
-            <Field label="姓名" error={fieldErrors.full_name}>
-              <Input placeholder="真实姓名" value={form.full_name}
-                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                className={fieldErrors.full_name ? "border-destructive focus-visible:ring-destructive" : ""}
-                required />
-            </Field>
-            <Field label="初始密码" error={fieldErrors.password}>
-              <Input type="password" placeholder="至少 8 位，含字母和数字" value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className={fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}
-                required />
-            </Field>
-            <Field label="确认密码" error={fieldErrors.confirm}>
-              <Input type="password" placeholder="再次输入密码" value={form.confirm}
-                onChange={(e) => setForm({ ...form, confirm: e.target.value })}
-                className={fieldErrors.confirm ? "border-destructive focus-visible:ring-destructive" : ""}
-                required />
-            </Field>
-            {msg && <p className="text-destructive text-xs">{msg}</p>}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>取消</Button>
-              <Button type="submit" isLoading={submitting}>创建</Button>
-            </div>
-          </form>
-        </Modal>
+        <CreateModal roles={roles} onClose={() => setShowCreate(false)} onCreated={load} />
+      )}
+
+      {/* 编辑账户弹窗（角色+状态） */}
+      {editUser && (
+        <EditModal user={editUser} roles={roles} onClose={() => setEditUser(null)} onSaved={load} />
       )}
 
       {/* 重置密码弹窗 */}
@@ -216,24 +169,160 @@ export default function AccountsPage() {
   )
 }
 
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+/* ── 新建账户弹窗 ────────────────────────────────────── */
+function CreateModal({ roles, onClose, onCreated }: { roles: Role[]; onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({
+    username: "", full_name: "", password: "", confirm: "",
+    role_id: (roles[0]?.id ?? null) as number | null,
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [msg, setMsg] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  function validate() {
+    const errors: Record<string, string> = {}
+    if (form.username.length < 3) errors.username = "账号至少 3 个字符"
+    if (!/^[a-zA-Z0-9_]+$/.test(form.username)) errors.username = "账号只能包含字母、数字和下划线"
+    if (form.full_name.trim().length < 2) errors.full_name = "姓名至少 2 个字符"
+    if (form.password.length < 8) errors.password = "密码至少 8 位"
+    else if (!/[A-Za-z]/.test(form.password)) errors.password = "密码需包含至少 1 个字母"
+    else if (!/[0-9]/.test(form.password)) errors.password = "密码需包含至少 1 个数字"
+    if (form.confirm !== form.password) errors.confirm = "两次密码不一致"
+    return errors
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setMsg("")
+    const errors = validate()
+    if (Object.keys(errors).length > 0) { setFieldErrors(errors); return }
+    setFieldErrors({})
+    setSubmitting(true)
+    try {
+      await createUser({
+        username: form.username,
+        full_name: form.full_name,
+        password: form.password,
+        role_id: form.role_id ?? undefined,
+      })
+      onCreated()
+      onClose()
+    } catch (err: any) {
+      setMsg(err.response?.data?.detail ?? "创建失败，账号可能已存在")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 300, damping: 35 }}
-        className="bg-card rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6"
-        onClick={(e) => e.stopPropagation()}
-        style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.6)" }}
-      >
-        <h2 className="text-base font-semibold mb-4">{title}</h2>
-        {children}
-      </motion.div>
-    </div>
+    <Modal title="新建账户" onClose={onClose}>
+      <form className="space-y-3" onSubmit={handleSubmit}>
+        <Field label="账号" error={fieldErrors.username}>
+          <Input placeholder="字母/数字/下划线，至少 3 位" value={form.username}
+            onChange={(e) => setForm({ ...form, username: e.target.value })}
+            className={fieldErrors.username ? "border-destructive focus-visible:ring-destructive" : ""}
+            required />
+        </Field>
+        <Field label="姓名" error={fieldErrors.full_name}>
+          <Input placeholder="真实姓名" value={form.full_name}
+            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+            className={fieldErrors.full_name ? "border-destructive focus-visible:ring-destructive" : ""}
+            required />
+        </Field>
+        <Field label="角色">
+          <select
+            className="w-full h-9 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            value={form.role_id ?? ""}
+            onChange={(e) => setForm({ ...form, role_id: e.target.value ? Number(e.target.value) : null })}
+          >
+            <option value="">未分配角色</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="初始密码" error={fieldErrors.password}>
+          <Input type="password" placeholder="至少 8 位，含字母和数字" value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            className={fieldErrors.password ? "border-destructive focus-visible:ring-destructive" : ""}
+            required />
+        </Field>
+        <Field label="确认密码" error={fieldErrors.confirm}>
+          <Input type="password" placeholder="再次输入密码" value={form.confirm}
+            onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+            className={fieldErrors.confirm ? "border-destructive focus-visible:ring-destructive" : ""}
+            required />
+        </Field>
+        {msg && <p className="text-destructive text-xs">{msg}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" onClick={onClose}>取消</Button>
+          <Button type="submit" isLoading={submitting}>创建</Button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 
+/* ── 编辑账户弹窗（角色+状态） ────────────────────────── */
+function EditModal({ user, roles, onClose, onSaved }: { user: User; roles: Role[]; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({
+    full_name: user.full_name,
+    is_active: user.is_active,
+    role_id: user.role_id as number | null,
+  })
+  const [saving, setSaving] = useState(false)
+  const [errMsg, setErrMsg] = useState("")
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setErrMsg("")
+    try {
+      await updateUser(user.id, {
+        full_name: form.full_name,
+        is_active: form.is_active,
+        role_id: form.role_id,
+      })
+      onSaved()
+      onClose()
+    } catch (err: any) {
+      setErrMsg(err.response?.data?.detail ?? "保存失败")
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <Modal title={`编辑账户 — ${user.username}`} onClose={onClose}>
+      <form className="space-y-4" onSubmit={handleSave}>
+        <Field label="姓名">
+          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
+        </Field>
+        <Field label="角色">
+          <select
+            className="w-full h-9 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            value={form.role_id ?? ""}
+            onChange={(e) => setForm({ ...form, role_id: e.target.value ? Number(e.target.value) : null })}
+          >
+            <option value="">未分配角色</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+        </Field>
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="rounded" />
+          已激活
+        </label>
+        {errMsg && <p className="text-destructive text-xs">{errMsg}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" onClick={onClose}>取消</Button>
+          <Button type="submit" isLoading={saving}>保存</Button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+/* ── 打卡规则弹窗 ────────────────────────────────────── */
 function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => void; onSaved: () => void }) {
   const [rules, setRules] = useState({
     require_location: user.require_location,
@@ -271,7 +360,6 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
   return (
     <Modal title={`打卡规则 — ${user.full_name}`} onClose={onClose}>
       <form className="space-y-4" onSubmit={handleSave}>
-        {/* Location */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-medium">
             <input type="checkbox" checked={rules.require_location}
@@ -290,8 +378,6 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
             </div>
           )}
         </div>
-
-        {/* Time */}
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-medium">
             <input type="checkbox" checked={rules.require_time}
@@ -308,21 +394,37 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
             </div>
           )}
         </div>
-
-        {/* Face */}
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" checked={rules.require_face}
             onChange={(e) => setRules({ ...rules, require_face: e.target.checked })}
             className="rounded" />
           要求人脸识别
         </label>
-
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={onClose}>取消</Button>
           <Button type="submit" isLoading={saving}>保存</Button>
         </div>
       </form>
     </Modal>
+  )
+}
+
+/* ── 通用组件 ─────────────────────────────────────────── */
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 35 }}
+        className="bg-card rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6"
+        onClick={(e) => e.stopPropagation()}
+        style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.6)" }}
+      >
+        <h2 className="text-base font-semibold mb-4">{title}</h2>
+        {children}
+      </motion.div>
+    </div>
   )
 }
 

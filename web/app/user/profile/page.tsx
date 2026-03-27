@@ -84,6 +84,11 @@ export default function UserProfilePage() {
                   {user.is_active ? "已激活" : "待激活"}
                 </Badge>
               </InfoRow>
+              <InfoRow label="角色">
+                <Badge variant={user.is_admin ? "default" : "outline"}>
+                  {user.role?.name ?? (user.is_admin ? "管理员" : "普通用户")}
+                </Badge>
+              </InfoRow>
               <InfoRow label="人脸录入">
                 <Badge variant={user.face_enrolled ? "success" : "outline"}>
                   {user.face_enrolled ? "已录入" : "未录入"}

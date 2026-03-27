@@ -1,11 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import engine, Base
-from app.routers import auth, users, checkins
+from app.database import engine, Base, SessionLocal
+from app.routers import auth, users, checkins, roles
+from app.seed import seed_rbac
 
 
 # Create tables
 Base.metadata.create_all(bind=engine)
+
+# Seed default RBAC data
+_db = SessionLocal()
+try:
+    seed_rbac(_db)
+finally:
+    _db.close()
 
 app = FastAPI(title="熵析云枢打卡系统 API", version="0.1.0")
 
@@ -23,6 +31,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(checkins.router)
+app.include_router(roles.router)
 
 
 @app.get("/")

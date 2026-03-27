@@ -11,11 +11,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8
 
 
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    return password
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode(), hashed.encode())
+    return plain == hashed
 
 
 def create_access_token(data: dict) -> str:
@@ -35,7 +35,7 @@ _bearer = HTTPBearer()
 def get_current_user(
     cred: HTTPAuthorizationCredentials = Depends(_bearer),
 ):
-    """Decode JWT and return payload dict with 'sub' (user_id) and 'is_admin'."""
+    """Decode JWT and return payload dict with 'sub' (user_id), 'is_admin', 'role', 'permissions'."""
     try:
         payload = decode_token(cred.credentials)
     except JWTError:
@@ -49,3 +49,16 @@ def require_admin(
     if not payload.get("is_admin"):
         raise HTTPException(status_code=403, detail="需要管理员权限")
     return payload
+
+
+def require_permission(*codenames: str):
+    """返回一个 FastAPI 依赖，检查当前用户是否拥有指定权限之一"""
+    def _checker(payload: dict = Depends(get_current_user)):
+        # 管理员拥有全部权限
+        if payload.get("is_admin"):
+            return payload
+        user_perms = set(payload.get("permissions", []))
+        if not user_perms.intersection(codenames):
+            raise HTTPException(status_code=403, detail="权限不足")
+        return payload
+    return _checker

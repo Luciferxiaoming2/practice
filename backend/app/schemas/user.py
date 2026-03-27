@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from app.schemas.role import RoleBrief
 
 
 class UserCreate(BaseModel):
@@ -7,12 +8,14 @@ class UserCreate(BaseModel):
     full_name: str
     password: str
     is_admin: bool = False
+    role_id: Optional[int] = None
 
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
+    role_id: Optional[int] = None
     face_enrolled: Optional[bool] = None
     require_location: Optional[bool] = None
     location_lat: Optional[float] = None
@@ -31,6 +34,8 @@ class UserOut(BaseModel):
     is_active: bool
     is_admin: bool
     face_enrolled: bool
+    role_id: Optional[int]
+    role: Optional[RoleBrief] = None
     require_location: bool
     location_lat: Optional[float]
     location_lng: Optional[float]

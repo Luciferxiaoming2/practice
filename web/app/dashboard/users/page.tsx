@@ -1,18 +1,20 @@
 "use client"
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Search, Loader2, Pencil, Trash2, RotateCcw, ScanFace } from "lucide-react"
+import { Search, Loader2, Pencil, Trash2, RotateCcw, ScanFace, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion"
-import { getUsers, updateUser, resetPassword, resetFace, deleteUser, type User } from "@/lib/api"
+import { getUsers, createUser, updateUser, resetPassword, resetFace, deleteUser, getRoles, type User, type Role } from "@/lib/api"
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
+  const [roles, setRoles] = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
   const [keyword, setKeyword] = useState("")
+  const [showCreate, setShowCreate] = useState(false)
   const [editUser, setEditUser] = useState<User | null>(null)
   const [showReset, setShowReset] = useState<{ id: number; name: string } | null>(null)
   const [showDelete, setShowDelete] = useState<{ id: number; name: string } | null>(null)
@@ -21,7 +23,11 @@ export default function UsersPage() {
   const [errMsg, setErrMsg] = useState("")
 
   async function load() {
-    try { setUsers(await getUsers()) } finally { setLoading(false) }
+    try {
+      const [u, r] = await Promise.all([getUsers(), getRoles()])
+      setUsers(u)
+      setRoles(r)
+    } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
@@ -70,6 +76,9 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold">用户管理</h1>
           <p className="text-muted-foreground text-sm mt-0.5">查看、编辑和管理所有用户</p>
         </div>
+        <Button leftIcon={<Plus size={14} />} onClick={() => setShowCreate(true)}>
+          新建用户
+        </Button>
       </motion.div>
 
       <motion.div className="flex flex-wrap gap-3 mb-4" variants={fadeInUp} initial="hidden" animate="visible">
@@ -112,7 +121,7 @@ export default function UsersPage() {
                       <td className="px-5 py-3">{u.full_name}</td>
                       <td className="px-5 py-3">
                         <Badge variant={u.is_admin ? "default" : "outline"}>
-                          {u.is_admin ? "管理员" : "普通用户"}
+                          {u.role?.name ?? (u.is_admin ? "管理员" : "普通用户")}
                         </Badge>
                       </td>
                       <td className="px-5 py-3">
@@ -155,8 +164,11 @@ export default function UsersPage() {
         </motion.div>
       )}
 
+      {/* 新建用户弹窗 */}
+      {showCreate && <CreateModal roles={roles} onClose={() => setShowCreate(false)} onCreated={load} />}
+
       {/* 编辑用户弹窗 */}
-      {editUser && <EditModal user={editUser} onClose={() => setEditUser(null)} onSaved={load} />}
+      {editUser && <EditModal user={editUser} roles={roles} onClose={() => setEditUser(null)} onSaved={load} />}
 
       {/* 重置密码弹窗 */}
       {showReset && (
@@ -191,22 +203,95 @@ export default function UsersPage() {
   )
 }
 
+/* ── 新建用户弹窗 ────────────────────────────────────── */
+function CreateModal({ roles, onClose, onCreated }: { roles: Role[]; onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({
+    username: "",
+    full_name: "",
+    password: "",
+    role_id: (roles[0]?.id ?? null) as number | null,
+    is_active: true,
+  })
+  const [saving, setSaving] = useState(false)
+  const [errMsg, setErrMsg] = useState("")
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setErrMsg("")
+    try {
+      await createUser({
+        username: form.username,
+        full_name: form.full_name,
+        password: form.password,
+        role_id: form.role_id ?? undefined,
+      })
+      // 如果需要设置 is_active，创建后再 patch（因为 createUser 默认 is_active=false）
+      onCreated()
+      onClose()
+    } catch (err: any) {
+      setErrMsg(err.response?.data?.detail ?? "创建失败，请重试")
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <Modal title="新建用户" onClose={onClose}>
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <Field label="账号">
+          <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="英文、数字、下划线" required />
+        </Field>
+        <Field label="姓名">
+          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="用户真实姓名" required />
+        </Field>
+        <Field label="密码">
+          <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="初始密码" required />
+        </Field>
+        <Field label="角色">
+          <select
+            className="w-full h-9 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            value={form.role_id ?? ""}
+            onChange={(e) => setForm({ ...form, role_id: e.target.value ? Number(e.target.value) : null })}
+          >
+            <option value="">未分配角色</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+        </Field>
+        {errMsg && <p className="text-destructive text-xs">{errMsg}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" onClick={onClose}>取消</Button>
+          <Button type="submit" isLoading={saving}>创建</Button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 /* ── 编辑用户弹窗 ────────────────────────────────────── */
-function EditModal({ user, onClose, onSaved }: { user: User; onClose: () => void; onSaved: () => void }) {
+function EditModal({ user, roles, onClose, onSaved }: { user: User; roles: Role[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
     full_name: user.full_name,
     is_active: user.is_active,
-    is_admin: user.is_admin,
+    role_id: user.role_id as number | null,
   })
   const [saving, setSaving] = useState(false)
+  const [errMsg, setErrMsg] = useState("")
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+    setErrMsg("")
     try {
-      await updateUser(user.id, form)
+      await updateUser(user.id, {
+        full_name: form.full_name,
+        is_active: form.is_active,
+        role_id: form.role_id,
+      })
       onSaved()
       onClose()
+    } catch (err: any) {
+      setErrMsg(err.response?.data?.detail ?? "保存失败，请重试")
     } finally { setSaving(false) }
   }
 
@@ -216,14 +301,23 @@ function EditModal({ user, onClose, onSaved }: { user: User; onClose: () => void
         <Field label="姓名">
           <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
         </Field>
+        <Field label="角色">
+          <select
+            className="w-full h-9 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            value={form.role_id ?? ""}
+            onChange={(e) => setForm({ ...form, role_id: e.target.value ? Number(e.target.value) : null })}
+          >
+            <option value="">未分配角色</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+        </Field>
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="rounded" />
           已激活
         </label>
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input type="checkbox" checked={form.is_admin} onChange={(e) => setForm({ ...form, is_admin: e.target.checked })} className="rounded" />
-          管理员角色
-        </label>
+        {errMsg && <p className="text-destructive text-xs">{errMsg}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={onClose}>取消</Button>
           <Button type="submit" isLoading={saving}>保存</Button>

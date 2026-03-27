@@ -35,6 +35,60 @@ export async function register(username: string, full_name: string, password: st
   return data
 }
 
+// ── Permissions & Roles ──────────────────────────────
+export interface Permission {
+  id: number
+  codename: string
+  name: string
+}
+
+export interface Role {
+  id: number
+  name: string
+  description: string
+  is_system: boolean
+  permissions: Permission[]
+}
+
+export interface RoleBrief {
+  id: number
+  name: string
+}
+
+export async function getPermissions() {
+  const { data } = await api.get<Permission[]>("/roles/permissions")
+  return data
+}
+
+export async function getRoles() {
+  const { data } = await api.get<Role[]>("/roles/")
+  return data
+}
+
+export async function getRole(id: number) {
+  const { data } = await api.get<Role>(`/roles/${id}`)
+  return data
+}
+
+export async function createRole(body: { name: string; description?: string; permission_ids?: number[] }) {
+  const { data } = await api.post<Role>("/roles/", body)
+  return data
+}
+
+export async function updateRole(id: number, body: { name?: string; description?: string; permission_ids?: number[] }) {
+  const { data } = await api.patch<Role>(`/roles/${id}`, body)
+  return data
+}
+
+export async function deleteRole(id: number) {
+  await api.delete(`/roles/${id}`)
+}
+
+export async function getRoleUsers(roleId: number) {
+  const { data } = await api.get<{ id: number; username: string; full_name: string }[]>(`/roles/${roleId}/users`)
+  return data
+}
+
 // ── Users ─────────────────────────────────────────────
 export interface User {
   id: number
@@ -43,6 +97,8 @@ export interface User {
   is_active: boolean
   is_admin: boolean
   face_enrolled: boolean
+  role_id: number | null
+  role: RoleBrief | null
   require_location: boolean
   location_lat: number | null
   location_lng: number | null
@@ -68,12 +124,14 @@ export async function createUser(body: {
   full_name: string
   password: string
   is_admin?: boolean
+  role_id?: number
 }) {
   const { data } = await api.post<User>("/users/", body)
   return data
 }
 
-export async function updateUser(id: number, body: Partial<User>) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function updateUser(id: number, body: Record<string, any>) {
   const { data } = await api.patch<User>(`/users/${id}`, body)
   return data
 }
