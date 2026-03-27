@@ -58,6 +58,11 @@ export async function getUsers() {
   return data
 }
 
+export async function getUser(id: number) {
+  const { data } = await api.get<User>(`/users/${id}`)
+  return data
+}
+
 export async function createUser(body: {
   username: string
   full_name: string
@@ -79,6 +84,10 @@ export async function resetPassword(id: number, newPassword: string) {
 
 export async function resetFace(id: number) {
   await api.post(`/users/${id}/reset-face`)
+}
+
+export async function deleteUser(id: number) {
+  await api.delete(`/users/${id}`)
 }
 
 // ── Checkins ──────────────────────────────────────────

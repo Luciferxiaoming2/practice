@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
@@ -11,6 +11,14 @@ import { useAuth } from "@/lib/auth-context"
 import { scaleIn } from "@/lib/motion"
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
+  )
+}
+
+function LoginContent() {
   const { signIn } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -25,8 +33,8 @@ export default function LoginPage() {
     setError("")
     setLoading(true)
     try {
-      await signIn(username, password)
-      router.push("/dashboard")
+      const isAdmin = await signIn(username, password)
+      router.push(isAdmin ? "/dashboard" : "/user")
     } catch {
       setError("账号或密码错误")
     } finally {
@@ -51,7 +59,7 @@ export default function LoginPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle className="text-center text-lg">管理员登录</CardTitle>
+            <CardTitle className="text-center text-lg">登录</CardTitle>
           </CardHeader>
           <CardContent>
             {justRegistered && (
@@ -65,6 +73,7 @@ export default function LoginPage() {
                 <Input
                   type="text"
                   placeholder="请输入账号"
+                  autoComplete="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
@@ -74,6 +83,7 @@ export default function LoginPage() {
                 <label className="text-sm font-medium">密码</label>
                 <PasswordInput
                   placeholder="请输入密码"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

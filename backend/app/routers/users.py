@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
+from app.models.checkin import CheckIn
 from app.schemas.user import UserCreate, UserOut, UserUpdate, PasswordReset
 from app.core import hash_password, get_current_user, require_admin
 
@@ -42,6 +43,9 @@ def update_user(user_id: int, body: UserUpdate, db: Session = Depends(get_db), p
     caller_id = int(payload["sub"])
     if not payload.get("is_admin") and caller_id != user_id:
         raise HTTPException(status_code=403, detail="无权修改他人信息")
+    # 非管理员不可修改角色字段
+    if not payload.get("is_admin") and body.is_admin is not None:
+        raise HTTPException(status_code=403, detail="无权修改角色")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
@@ -50,6 +54,20 @@ def update_user(user_id: int, body: UserUpdate, db: Session = Depends(get_db), p
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.delete("/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db), payload: dict = Depends(require_admin)):
+    caller_id = int(payload["sub"])
+    if user_id == caller_id:
+        raise HTTPException(status_code=400, detail="不能删除自己的账户")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    db.query(CheckIn).filter(CheckIn.user_id == user_id).delete()
+    db.delete(user)
+    db.commit()
+    return {"detail": "用户已删除"}
 
 
 @router.post("/{user_id}/reset-password")

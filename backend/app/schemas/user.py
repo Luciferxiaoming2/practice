@@ -12,6 +12,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
     face_enrolled: Optional[bool] = None
     require_location: Optional[bool] = None
     location_lat: Optional[float] = None

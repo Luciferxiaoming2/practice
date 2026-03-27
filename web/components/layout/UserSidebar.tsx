@@ -1,20 +1,17 @@
 "use client"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, Users, UserCog, Shield, ClipboardList, Settings, LogOut } from "lucide-react"
+import { Home, ClipboardList, UserCircle, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 
 const nav = [
-  { href: "/dashboard", label: "控制台", icon: LayoutDashboard },
-  { href: "/dashboard/accounts", label: "账户管理", icon: Users },
-  { href: "/dashboard/users", label: "用户管理", icon: UserCog },
-  { href: "/dashboard/roles", label: "角色管理", icon: Shield },
-  { href: "/dashboard/checkins", label: "打卡记录", icon: ClipboardList },
-  { href: "/dashboard/settings", label: "系统设置", icon: Settings },
+  { href: "/user", label: "首页", icon: Home },
+  { href: "/user/checkins", label: "我的打卡", icon: ClipboardList },
+  { href: "/user/profile", label: "个人信息", icon: UserCircle },
 ]
 
-export function Sidebar() {
+export function UserSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { signOut } = useAuth()
