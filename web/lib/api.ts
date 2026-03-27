@@ -158,6 +158,11 @@ export interface CheckIn {
   status: string
 }
 
+export async function createCheckin(body: { lat?: number; lng?: number; status?: string }) {
+  const { data } = await api.post<CheckIn>("/checkins/", body)
+  return data
+}
+
 export async function getCheckins(params?: {
   user_id?: number
   date_from?: string

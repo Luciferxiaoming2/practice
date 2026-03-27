@@ -80,12 +80,14 @@ SECRET_KEY = "change-me-in-production"
 <string>打卡需要使用摄像头进行人脸识别</string>
 ```
 
-### 6. Web 端 API 地址（可选）
-在 `web/` 目录下创建 `.env.local`：
+### 6. Web 端环境配置
+在 `web/.env.local` 中配置：
 ```
 NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_AMAP_KEY=您的高德Key
 ```
-默认已回退到 `http://localhost:8000`，本地开发无需配置。
+- API 地址默认回退到 `http://localhost:8000`，本地开发无需修改
+- 高德 Key 需到 [高德开放平台](https://console.amap.com/) 申请 Web端(JS API) Key
 
 ### 7. 人脸识别（待接入）
 当前移动端人脸录入仅拍照并标记 `face_enrolled=true`，未接入真实识别算法。

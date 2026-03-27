@@ -1,13 +1,14 @@
 "use client"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, ClipboardList, UserCircle, LogOut } from "lucide-react"
+import { Home, MapPin, ClipboardList, UserCircle, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 
 const nav = [
   { href: "/user", label: "首页", icon: Home },
-  { href: "/user/checkins", label: "我的打卡", icon: ClipboardList },
+  { href: "/user/checkin", label: "打卡", icon: MapPin },
+  { href: "/user/checkins", label: "打卡记录", icon: ClipboardList },
   { href: "/user/profile", label: "个人信息", icon: UserCircle },
 ]
 

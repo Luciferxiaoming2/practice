@@ -1,9 +1,11 @@
 "use client"
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { CheckCircle, AlertTriangle, Clock, MapPin } from "lucide-react"
+import { CheckCircle, AlertTriangle, Clock, MapPin, ArrowRight } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { staggerContainer, staggerItem } from "@/lib/motion"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { getCheckins, getUser, type CheckIn, type User } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 
@@ -71,7 +73,7 @@ export default function UserHomePage() {
                 <MapPin size={20} className="text-muted-foreground" />
               )}
             </div>
-            <div>
+            <div className="flex-1">
               <p className="text-muted-foreground text-xs">今日打卡</p>
               <p className="text-lg font-semibold mt-0.5">
                 {todayRecord
@@ -79,6 +81,11 @@ export default function UserHomePage() {
                   : "尚未打卡"}
               </p>
             </div>
+            {!todayRecord && (
+              <Link href="/user/checkin">
+                <Button size="sm" leftIcon={<ArrowRight size={14} />}>去打卡</Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       </motion.div>
