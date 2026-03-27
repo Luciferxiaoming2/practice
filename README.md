@@ -107,8 +107,56 @@ NEXT_PUBLIC_AMAP_KEY=您的高德Key
 | 配置打卡规则 | ✅ | — |
 | 首次登录引导 | — | ✅ |
 | 人脸录入 | — | ✅（待接入SDK）|
-| GPS 打卡 | — | ✅ |
-| 时间段验证 | — | ✅ |
-| 打卡记录 | 🚧 | 🚧 |
+| GPS 打卡 | ✅（高德地图）| ✅ |
+| 时间段验证 | ✅ | ✅ |
+| 打卡记录 | ✅ | 🚧 |
+| RBAC 角色权限 | ✅ | — |
 
 ✅ 已完成　🚧 待开发
+
+---
+
+## CI/CD 与部署
+
+### 架构
+```
+┌──────────┐     ┌──────────┐     ┌──────────┐
+│  Web端   │────▶│          │◀────│  移动端  │
+│ (Vercel) │     │  后端API │     │ (Flutter)│
+└──────────┘     │ (云服务器)│     └──────────┘
+                 └──────────┘
+```
+Web 端、Android、iOS 共用同一个后端 API。
+
+### GitHub Actions
+
+| Workflow | 触发条件 | 作用 |
+|----------|---------|------|
+| `ci.yml` | push/PR to master | 前端 TypeScript 检查 + 构建；后端导入检查 + 测试 |
+| `deploy-web.yml` | push to master（web/ 变更）| 自动部署 Web 端到 Vercel |
+
+### Vercel 部署配置
+
+1. 在 [Vercel](https://vercel.com) 导入 GitHub 仓库
+2. 在 GitHub 仓库 Settings → Secrets and variables → Actions 中添加：
+
+**Secrets（必填）：**
+| 名称 | 说明 |
+|------|------|
+| `VERCEL_TOKEN` | Vercel 个人 Token（Settings → Tokens） |
+| `VERCEL_ORG_ID` | Vercel 团队/个人 ID |
+| `VERCEL_PROJECT_ID` | Vercel 项目 ID |
+
+**Variables（必填）：**
+| 名称 | 说明 | 示例 |
+|------|------|------|
+| `NEXT_PUBLIC_API_URL` | 后端 API 地址 | `https://api.your-domain.com` |
+| `NEXT_PUBLIC_AMAP_KEY` | 高德地图 JS API Key | `xxxxxxxxxxxxxxxx` |
+
+> 获取 Vercel ID：运行 `npx vercel link`，在 `.vercel/project.json` 中查看 `orgId` 和 `projectId`。
+
+### 后端部署
+后端需部署到支持 Python 的云服务器，确保：
+1. 修改 `backend/app/core.py` 中的 `SECRET_KEY`
+2. 配置 CORS 允许 Vercel 域名和移动端访问
+3. 启动命令：`uvicorn app.main:app --host 0.0.0.0 --port 8000`

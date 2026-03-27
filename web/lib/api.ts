@@ -130,8 +130,7 @@ export async function createUser(body: {
   return data
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function updateUser(id: number, body: Record<string, any>) {
+export async function updateUser(id: number, body: Record<string, unknown>) {
   const { data } = await api.patch<User>(`/users/${id}`, body)
   return data
 }
