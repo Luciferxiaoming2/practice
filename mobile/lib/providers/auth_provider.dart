@@ -39,6 +39,24 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> register(String username, String fullName, String password) async {
+    loading = true;
+    error = null;
+    notifyListeners();
+    try {
+      // TODO: 后期替换为 dio.post('/auth/register', ...)
+      await LocalStore.register(username, fullName, password);
+      // 注册成功后自动登录
+      final raw = await LocalStore.login(username, password);
+      if (raw != null) currentUser = User.fromJson(raw);
+    } catch (e) {
+      error = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> changePassword(String newPassword) async {
     if (currentUser == null) return;
     // TODO: 后期替换为 dio.post('/users/${currentUser!.id}/reset-password', ...)

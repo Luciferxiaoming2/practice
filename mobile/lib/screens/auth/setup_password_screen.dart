@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
-import '../auth/login_screen.dart' show _PrimaryButton;
+import '../../widgets/shared_widgets.dart';
 
 class SetupPasswordScreen extends StatefulWidget {
   const SetupPasswordScreen({super.key});
@@ -46,7 +46,7 @@ class _SetupPasswordScreenState extends State<SetupPasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 40),
-              _StepIndicator(current: 1, total: 2),
+              StepIndicator(current: 1, total: 2),
               const SizedBox(height: 32),
               const Text('设置新密码', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
@@ -60,7 +60,7 @@ class _SetupPasswordScreenState extends State<SetupPasswordScreen> {
                 Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 13)),
               ],
               const Spacer(),
-              _PrimaryButton(label: '下一步', loading: _loading, onPressed: _submit),
+              PrimaryButton(label: '下一步', loading: _loading, onPressed: _submit),
             ],
           ),
         ),
@@ -90,28 +90,3 @@ class _SetupPasswordScreenState extends State<SetupPasswordScreen> {
   }
 }
 
-class _StepIndicator extends StatelessWidget {
-  final int current;
-  final int total;
-  const _StepIndicator({required this.current, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      children: List.generate(total, (i) {
-        final active = i < current;
-        return Expanded(
-          child: Container(
-            margin: EdgeInsets.only(right: i < total - 1 ? 6 : 0),
-            height: 4,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(2),
-              color: active ? scheme.primary : scheme.primary.withOpacity(0.2),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-}

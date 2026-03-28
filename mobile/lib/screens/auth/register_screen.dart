@@ -4,27 +4,47 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/shared_widgets.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
   final _usernameCtrl = TextEditingController();
+  final _fullNameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+  String? _error;
 
   Future<void> _submit() async {
-    final auth = context.read<AuthProvider>();
-    await auth.login(_usernameCtrl.text.trim(), _passwordCtrl.text);
-    if (!mounted) return;
-    if (auth.error != null) return;
-    // Route based on account state
-    if (auth.needsSetup) {
-      context.go('/setup/password');
-    } else {
-      context.go('/home');
+    if (_usernameCtrl.text.trim().isEmpty || _fullNameCtrl.text.trim().isEmpty) {
+      setState(() => _error = '请填写完整信息');
+      return;
     }
+    if (_passwordCtrl.text.length < 6) {
+      setState(() => _error = '密码至少 6 位');
+      return;
+    }
+    if (_passwordCtrl.text != _confirmCtrl.text) {
+      setState(() => _error = '两次密码不一致');
+      return;
+    }
+    setState(() => _error = null);
+
+    final auth = context.read<AuthProvider>();
+    await auth.register(
+      _usernameCtrl.text.trim(),
+      _fullNameCtrl.text.trim(),
+      _passwordCtrl.text,
+    );
+    if (!mounted) return;
+    if (auth.error != null) {
+      setState(() => _error = auth.error);
+      return;
+    }
+    // 注册成功，自动登录并进入设置流程
+    context.go('/setup/password');
   }
 
   @override
@@ -62,13 +82,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         BoxShadow(color: scheme.primary.withOpacity(0.35), blurRadius: 16, offset: const Offset(0, 6)),
                       ],
                     ),
-                    child: const Icon(Icons.fingerprint, color: Colors.white, size: 36),
+                    child: const Icon(Icons.person_add_outlined, color: Colors.white, size: 36),
                   ),
                   const SizedBox(height: 20),
-                  Text('熵析云枢', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: scheme.primary)),
+                  Text('创建账号', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: scheme.primary)),
                   const SizedBox(height: 4),
-                  Text('打卡系统', style: TextStyle(fontSize: 13, color: scheme.onSurface.withOpacity(0.5))),
-                  const SizedBox(height: 40),
+                  Text('注册后即可使用打卡系统', style: TextStyle(fontSize: 13, color: scheme.onSurface.withOpacity(0.5))),
+                  const SizedBox(height: 32),
 
                   // Card
                   Container(
@@ -86,28 +106,32 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         _Field(label: '账号', controller: _usernameCtrl, hint: '请输入账号'),
                         const SizedBox(height: 16),
-                        _Field(label: '密码', controller: _passwordCtrl, hint: '请输入密码', obscure: true),
-                        if (auth.error != null) ...[
+                        _Field(label: '姓名', controller: _fullNameCtrl, hint: '请输入真实姓名'),
+                        const SizedBox(height: 16),
+                        _Field(label: '密码', controller: _passwordCtrl, hint: '请输入密码（至少6位）', obscure: true),
+                        const SizedBox(height: 16),
+                        _Field(label: '确认密码', controller: _confirmCtrl, hint: '请再次输入密码', obscure: true),
+                        if (_error != null) ...[
                           const SizedBox(height: 12),
-                          Text(auth.error!, style: TextStyle(color: scheme.error, fontSize: 13)),
+                          Text(_error!, style: TextStyle(color: scheme.error, fontSize: 13)),
                         ],
                         const SizedBox(height: 24),
                         PrimaryButton(
-                          label: '登录',
+                          label: '注册',
                           loading: auth.loading,
                           onPressed: _submit,
                         ),
                         const SizedBox(height: 16),
                         Center(
                           child: GestureDetector(
-                            onTap: () => context.go('/register'),
+                            onTap: () => context.go('/login'),
                             child: Text.rich(
                               TextSpan(
-                                text: '没有账号？',
+                                text: '已有账号？',
                                 style: TextStyle(fontSize: 13, color: scheme.onSurface.withOpacity(0.5)),
                                 children: [
                                   TextSpan(
-                                    text: '立即注册',
+                                    text: '返回登录',
                                     style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w600),
                                   ),
                                 ],
@@ -159,4 +183,3 @@ class _Field extends StatelessWidget {
     );
   }
 }
-

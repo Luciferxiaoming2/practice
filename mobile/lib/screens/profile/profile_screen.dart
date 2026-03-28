@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
-import '../auth/login_screen.dart' show _PrimaryButton;
+import '../../widgets/shared_widgets.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -111,7 +111,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(_msg!, style: TextStyle(fontSize: 13, color: _success ? Colors.green.shade700 : scheme.error)),
             ],
             const SizedBox(height: 16),
-            _PrimaryButton(label: '确认修改', loading: _loading, onPressed: _changePassword),
+            PrimaryButton(label: '确认修改', loading: _loading, onPressed: _changePassword),
           ],
         ),
       ),

@@ -120,6 +120,36 @@ class LocalStore {
     await updateUser(userId, {'password': newPassword});
   }
 
+  // TODO: 后期替换为 dio.post('/auth/register', ...)
+  static Future<Map<String, dynamic>> register(String username, String fullName, String password) async {
+    final users = await getUsers();
+    if (users.any((u) => u['username'] == username)) {
+      throw Exception('账号已存在');
+    }
+    final maxId = users.fold<int>(0, (prev, u) => u['id'] > prev ? u['id'] as int : prev);
+    final user = <String, dynamic>{
+      'id': maxId + 1,
+      'username': username,
+      'full_name': fullName,
+      'password': password,
+      'is_active': false,
+      'is_admin': false,
+      'face_enrolled': false,
+      'require_location': false,
+      'location_lat': null,
+      'location_lng': null,
+      'location_radius': null,
+      'require_time': false,
+      'checkin_time_start': null,
+      'checkin_time_end': null,
+      'require_face': false,
+    };
+    users.add(user);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyUsers, jsonEncode(users));
+    return user;
+  }
+
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyCurrentUser);

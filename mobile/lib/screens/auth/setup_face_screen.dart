@@ -4,8 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../providers/auth_provider.dart';
-import '../auth/login_screen.dart' show _PrimaryButton;
-import '../auth/setup_password_screen.dart' show _StepIndicator;
+import '../../widgets/shared_widgets.dart';
 
 class SetupFaceScreen extends StatefulWidget {
   const SetupFaceScreen({super.key});
@@ -53,7 +52,7 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 40),
-              _StepIndicator(current: 2, total: 2),
+              StepIndicator(current: 2, total: 2),
               const SizedBox(height: 32),
               const Text('录入人脸', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
@@ -105,7 +104,7 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
                 Text(_error!, style: TextStyle(color: scheme.error, fontSize: 13)),
               ],
               const Spacer(),
-              _PrimaryButton(label: '完成录入', loading: _loading, onPressed: _submit),
+              PrimaryButton(label: '完成录入', loading: _loading, onPressed: _submit),
             ],
           ),
         ),
