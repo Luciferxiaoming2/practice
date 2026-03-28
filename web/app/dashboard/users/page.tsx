@@ -1,13 +1,14 @@
 "use client"
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Search, Loader2, Pencil, Trash2, RotateCcw, ScanFace, Plus } from "lucide-react"
+import { Search, Loader2, Pencil, Trash2, RotateCcw, ScanFace, Plus, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion"
 import { getUsers, createUser, updateUser, resetPassword, resetFace, deleteUser, getRoles, type User, type Role } from "@/lib/api"
+import LocationPicker from "@/components/admin/LocationPicker"
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -18,6 +19,7 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<User | null>(null)
   const [showReset, setShowReset] = useState<{ id: number; name: string } | null>(null)
   const [showDelete, setShowDelete] = useState<{ id: number; name: string } | null>(null)
+  const [showRules, setShowRules] = useState<User | null>(null)
   const [newPwd, setNewPwd] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [errMsg, setErrMsg] = useState("")
@@ -111,6 +113,7 @@ export default function UsersPage() {
                     <th className="px-5 py-3 text-left font-medium">角色</th>
                     <th className="px-5 py-3 text-left font-medium">状态</th>
                     <th className="px-5 py-3 text-left font-medium">人脸</th>
+                    <th className="px-5 py-3 text-left font-medium">打卡规则</th>
                     <th className="px-5 py-3 text-left font-medium">操作</th>
                   </tr>
                 </thead>
@@ -135,10 +138,32 @@ export default function UsersPage() {
                         </Badge>
                       </td>
                       <td className="px-5 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {u.require_location && (
+                            <Badge variant="default">
+                              地点 {u.location_radius ? `${u.location_radius}m` : ""}
+                            </Badge>
+                          )}
+                          {u.require_time && (
+                            <Badge variant="default">
+                              时间 {u.checkin_time_start && u.checkin_time_end ? `${u.checkin_time_start}-${u.checkin_time_end}` : ""}
+                            </Badge>
+                          )}
+                          {u.require_face && <Badge variant="default">人脸</Badge>}
+                          {!u.require_location && !u.require_time && !u.require_face && (
+                            <span className="text-xs text-muted-foreground">未配置</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" leftIcon={<Pencil size={12} />}
                             onClick={() => setEditUser(u)}>
                             编辑
+                          </Button>
+                          <Button size="sm" variant="outline" leftIcon={<Settings size={12} />}
+                            onClick={() => setShowRules(u)}>
+                            规则
                           </Button>
                           <Button size="sm" variant="outline" leftIcon={<RotateCcw size={12} />}
                             onClick={() => { setShowReset({ id: u.id, name: u.full_name }); setNewPwd("") }}>
@@ -184,6 +209,11 @@ export default function UsersPage() {
             </div>
           </form>
         </Modal>
+      )}
+
+      {/* 打卡规则弹窗 */}
+      {showRules && (
+        <RulesModal user={showRules} onClose={() => setShowRules(null)} onSaved={load} />
       )}
 
       {/* 删除确认弹窗 */}
@@ -327,15 +357,120 @@ function EditModal({ user, roles, onClose, onSaved }: { user: User; roles: Role[
   )
 }
 
+/* ── 打卡规则弹窗 ────────────────────────────────────── */
+function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => void; onSaved: () => void }) {
+  const [rules, setRules] = useState({
+    require_location: user.require_location,
+    location_lat: user.location_lat ?? "",
+    location_lng: user.location_lng ?? "",
+    location_radius: user.location_radius ?? "",
+    require_time: user.require_time,
+    checkin_time_start: user.checkin_time_start ?? "",
+    checkin_time_end: user.checkin_time_end ?? "",
+    require_face: user.require_face,
+  })
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      await updateUser(user.id, {
+        require_location: rules.require_location,
+        location_lat: rules.location_lat === "" ? null : Number(rules.location_lat),
+        location_lng: rules.location_lng === "" ? null : Number(rules.location_lng),
+        location_radius: rules.location_radius === "" ? null : Number(rules.location_radius),
+        require_time: rules.require_time,
+        checkin_time_start: rules.checkin_time_start || null,
+        checkin_time_end: rules.checkin_time_end || null,
+        require_face: rules.require_face,
+      })
+      onSaved()
+      onClose()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal title={`打卡规则 — ${user.full_name}`} onClose={onClose} wide>
+      <form className="space-y-4" onSubmit={handleSave}>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={rules.require_location}
+              onChange={(e) => setRules({ ...rules, require_location: e.target.checked })}
+              className="rounded" />
+            要求地点打卡
+          </label>
+          {rules.require_location && (
+            <div className="space-y-2 pl-6">
+              <LocationPicker
+                lat={rules.location_lat}
+                lng={rules.location_lng}
+                radius={rules.location_radius}
+                onChange={(lat, lng) => setRules({ ...rules, location_lat: String(lat), location_lng: String(lng) })}
+              />
+              <div className="grid grid-cols-3 gap-2">
+                <Field label="纬度">
+                  <Input type="number" step="any" placeholder="30.2741" value={rules.location_lat}
+                    onChange={(e) => setRules({ ...rules, location_lat: e.target.value })} />
+                </Field>
+                <Field label="经度">
+                  <Input type="number" step="any" placeholder="120.1551" value={rules.location_lng}
+                    onChange={(e) => setRules({ ...rules, location_lng: e.target.value })} />
+                </Field>
+                <Field label="半径(米)">
+                  <Input type="number" step="any" placeholder="200" value={rules.location_radius}
+                    onChange={(e) => setRules({ ...rules, location_radius: e.target.value })} />
+                </Field>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={rules.require_time}
+              onChange={(e) => setRules({ ...rules, require_time: e.target.checked })}
+              className="rounded" />
+            要求时间段打卡
+          </label>
+          {rules.require_time && (
+            <div className="grid grid-cols-2 gap-2 pl-6">
+              <Field label="开始时间">
+                <Input type="time" value={rules.checkin_time_start}
+                  onChange={(e) => setRules({ ...rules, checkin_time_start: e.target.value })} />
+              </Field>
+              <Field label="结束时间">
+                <Input type="time" value={rules.checkin_time_end}
+                  onChange={(e) => setRules({ ...rules, checkin_time_end: e.target.value })} />
+              </Field>
+            </div>
+          )}
+        </div>
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input type="checkbox" checked={rules.require_face}
+            onChange={(e) => setRules({ ...rules, require_face: e.target.checked })}
+            className="rounded" />
+          要求人脸识别
+        </label>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" onClick={onClose}>取消</Button>
+          <Button type="submit" isLoading={saving}>保存</Button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 /* ── 通用组件 ─────────────────────────────────────────── */
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 35 }}
-        className="bg-card rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6"
+        className={`bg-card rounded-2xl shadow-xl w-full ${wide ? "max-w-lg" : "max-w-sm"} mx-4 p-6 max-h-[90vh] overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
         style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.6)" }}
       >

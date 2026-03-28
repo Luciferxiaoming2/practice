@@ -1,8 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:camera/camera.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/shared_widgets.dart';
 
@@ -13,17 +12,55 @@ class SetupFaceScreen extends StatefulWidget {
 }
 
 class _SetupFaceScreenState extends State<SetupFaceScreen> {
-  XFile? _photo;
+  CameraController? _controller;
+  List<CameraDescription> _cameras = [];
+  int _cameraIndex = 0;
+  bool _cameraReady = false;
+  bool _captured = false;
   bool _loading = false;
+  bool _switching = false;
   String? _error;
 
-  Future<void> _takeSelfie() async {
-    final img = await ImagePicker().pickImage(source: ImageSource.camera, preferredCameraDevice: CameraDevice.front);
-    if (img != null) setState(() => _photo = img);
+  @override
+  void initState() {
+    super.initState();
+    _initCamera();
+  }
+
+  Future<void> _initCamera() async {
+    _cameras = await availableCameras();
+    // 优先使用前置摄像头
+    _cameraIndex = _cameras.indexWhere((c) => c.lensDirection == CameraLensDirection.front);
+    if (_cameraIndex < 0) _cameraIndex = 0;
+    await _startCamera(_cameras[_cameraIndex]);
+  }
+
+  Future<void> _startCamera(CameraDescription camera) async {
+    await _controller?.dispose();
+    _controller = CameraController(camera, ResolutionPreset.medium);
+    await _controller!.initialize();
+    if (mounted) setState(() { _cameraReady = true; _switching = false; });
+  }
+
+  Future<void> _switchCamera() async {
+    if (_cameras.length < 2 || _switching) return;
+    setState(() { _switching = true; _cameraReady = false; });
+    _cameraIndex = (_cameraIndex + 1) % _cameras.length;
+    await _startCamera(_cameras[_cameraIndex]);
+  }
+
+  Future<void> _capture() async {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    await _controller!.takePicture();
+    setState(() => _captured = true);
+  }
+
+  Future<void> _retake() async {
+    setState(() => _captured = false);
   }
 
   Future<void> _submit() async {
-    if (_photo == null) {
+    if (!_captured) {
       setState(() => _error = '请先拍摄人脸照片');
       return;
     }
@@ -39,6 +76,12 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
   }
 
   @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
@@ -48,43 +91,125 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 40),
+              const SizedBox(height: 24),
               StepIndicator(current: 2, total: 2),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               const Text('录入人脸', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text('用于打卡时身份验证', style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
-              const SizedBox(height: 40),
-              GestureDetector(
-                onTap: _takeSelfie,
-                child: Container(
-                  height: 220,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    color: scheme.surfaceContainerHighest.withOpacity(0.5),
-                    border: Border.all(color: _photo != null ? scheme.primary : scheme.outline.withOpacity(0.3), width: _photo != null ? 2 : 1),
+              Text('请将面部置于框内，确保光线充足', style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+              const SizedBox(height: 24),
+
+              // 相机预览区域
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: _cameraReady && _controller != null
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              // 相机预览
+                              CameraPreview(_controller!),
+                              // 人脸框引导
+                              Center(
+                                child: Container(
+                                  width: 200, height: 260,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(120),
+                                    border: Border.all(
+                                      color: _captured ? Colors.green : Colors.white.withValues(alpha: 0.6),
+                                      width: 3,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // 翻转镜头按钮
+                              if (_cameras.length > 1 && !_captured)
+                                Positioned(
+                                  top: 12, right: 12,
+                                  child: GestureDetector(
+                                    onTap: _switchCamera,
+                                    child: Container(
+                                      width: 40, height: 40,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.black.withValues(alpha: 0.4),
+                                      ),
+                                      child: const Icon(Icons.cameraswitch_outlined, color: Colors.white, size: 22),
+                                    ),
+                                  ),
+                                ),
+                              // 已拍摄提示
+                              if (_captured)
+                                Positioned(
+                                  bottom: 16, left: 0, right: 0,
+                                  child: Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withValues(alpha: 0.85),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.check_circle, color: Colors.white, size: 18),
+                                          SizedBox(width: 6),
+                                          Text('已采集', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          )
+                        : Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(color: scheme.primary),
+                                const SizedBox(height: 12),
+                                Text('正在启动相机...', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                              ],
+                            ),
+                          ),
                   ),
-                  child: _photo == null
-                      ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          Icon(Icons.face_retouching_natural, size: 56, color: scheme.primary.withOpacity(0.5)),
-                          const SizedBox(height: 12),
-                          Text('点击拍摄人脸', style: TextStyle(color: scheme.onSurface.withOpacity(0.5), fontSize: 14)),
-                        ])
-                      : ClipRRect(borderRadius: BorderRadius.circular(22), child: Image.file(File(_photo!.path), fit: BoxFit.cover, width: double.infinity)),
                 ),
               ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _takeSelfie,
-                icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                label: Text(_photo == null ? '拍摄照片' : '重新拍摄'),
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              ),
+
+              const SizedBox(height: 20),
+
+              // 操作按钮
+              if (!_captured)
+                OutlinedButton.icon(
+                  onPressed: _cameraReady ? _capture : null,
+                  icon: const Icon(Icons.camera_alt_outlined, size: 20),
+                  label: const Text('拍摄'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                )
+              else
+                OutlinedButton.icon(
+                  onPressed: _retake,
+                  icon: const Icon(Icons.refresh, size: 20),
+                  label: const Text('重新拍摄'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+
               if (_error != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Text(_error!, style: TextStyle(color: scheme.error, fontSize: 13)),
               ],
-              const Spacer(),
+              const SizedBox(height: 12),
               PrimaryButton(label: '完成录入', loading: _loading, onPressed: _submit),
             ],
           ),

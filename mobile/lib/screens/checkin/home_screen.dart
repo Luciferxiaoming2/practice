@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+import 'package:camera/camera.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/checkin_provider.dart';
 import '../../services/location_service.dart';
@@ -46,8 +48,44 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _doCheckin() async {
+    final user = context.read<AuthProvider>().currentUser;
+    if (user != null && !user.faceEnrolled) {
+      _showFaceEnrollDialog();
+      return;
+    }
+
+    // If face verification is required, show face capture first
+    if (user != null && user.requireFace) {
+      final passed = await _showFaceVerification();
+      if (!passed) return;
+    }
+
     final checkin = context.read<CheckinProvider>();
     await checkin.doCheckin(_lat, _lng);
+  }
+
+  void _showFaceEnrollDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('请先录入人脸'),
+        content: const Text('打卡前需要完成人脸录入，是否现在去录入？'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('稍后')),
+          FilledButton(onPressed: () { Navigator.pop(ctx); context.go('/setup/face'); }, child: const Text('去录入')),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _showFaceVerification() async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const _FaceVerificationSheet(),
+    );
+    return result == true;
   }
 
   @override
@@ -117,6 +155,28 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (_locationReady) Icon(Icons.check_circle, color: Colors.green.shade400, size: 18),
                   ]),
                 ),
+
+                // 人脸未录入提示
+                if (user != null && !user.faceEnrolled) ...[
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () => context.go('/setup/face'),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text('人脸未录入，点击前往录入', style: TextStyle(fontSize: 13, color: Colors.orange.shade800, fontWeight: FontWeight.w500))),
+                        Icon(Icons.arrow_forward_ios, size: 14, color: Colors.orange.shade400),
+                      ]),
+                    ),
+                  ),
+                ],
 
                 const Spacer(),
 
@@ -197,6 +257,220 @@ class _HomeScreenState extends State<HomeScreen> {
     final now = DateTime.now();
     const weeks = ['一', '二', '三', '四', '五', '六', '日'];
     return '${now.month}月${now.day}日 周${weeks[now.weekday - 1]}';
+  }
+}
+
+/* ── 人脸验证底部弹窗 ──────────────────────────── */
+class _FaceVerificationSheet extends StatefulWidget {
+  const _FaceVerificationSheet();
+  @override
+  State<_FaceVerificationSheet> createState() => _FaceVerificationSheetState();
+}
+
+class _FaceVerificationSheetState extends State<_FaceVerificationSheet> {
+  CameraController? _controller;
+  List<CameraDescription> _cameras = [];
+  int _cameraIndex = 0;
+  bool _cameraReady = false;
+  bool _captured = false;
+  bool _verifying = false;
+  bool _switching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initCamera();
+  }
+
+  Future<void> _initCamera() async {
+    _cameras = await availableCameras();
+    if (_cameras.isEmpty) return;
+    _cameraIndex = _cameras.indexWhere((c) => c.lensDirection == CameraLensDirection.front);
+    if (_cameraIndex < 0) _cameraIndex = 0;
+    await _startCamera(_cameras[_cameraIndex]);
+  }
+
+  Future<void> _startCamera(CameraDescription camera) async {
+    await _controller?.dispose();
+    _controller = CameraController(camera, ResolutionPreset.medium);
+    await _controller!.initialize();
+    if (mounted) setState(() { _cameraReady = true; _switching = false; });
+  }
+
+  Future<void> _switchCamera() async {
+    if (_cameras.length < 2 || _switching) return;
+    setState(() { _switching = true; _cameraReady = false; });
+    _cameraIndex = (_cameraIndex + 1) % _cameras.length;
+    await _startCamera(_cameras[_cameraIndex]);
+  }
+
+  Future<void> _captureAndVerify() async {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    setState(() => _verifying = true);
+
+    await _controller!.takePicture();
+    setState(() => _captured = true);
+
+    // Simulate face verification delay (placeholder for real SDK)
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    if (mounted) {
+      Navigator.pop(context, true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 12, bottom: 8),
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // Title
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                Icon(Icons.face, color: Colors.white.withOpacity(0.9), size: 22),
+                const SizedBox(width: 10),
+                const Text('人脸验证', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context, false),
+                  child: Icon(Icons.close, color: Colors.white.withOpacity(0.6), size: 22),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Camera preview
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: _cameraReady && _controller != null
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          CameraPreview(_controller!),
+                          // Face guide oval
+                          Center(
+                            child: Container(
+                              width: 200, height: 260,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(120),
+                                border: Border.all(
+                                  color: _captured ? Colors.green : Colors.white.withOpacity(0.6),
+                                  width: 3,
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Switch camera button
+                          if (_cameras.length > 1 && !_verifying)
+                            Positioned(
+                              top: 12, right: 12,
+                              child: GestureDetector(
+                                onTap: _switchCamera,
+                                child: Container(
+                                  width: 40, height: 40,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.black.withOpacity(0.4),
+                                  ),
+                                  child: const Icon(Icons.cameraswitch_outlined, color: Colors.white, size: 22),
+                                ),
+                              ),
+                            ),
+                          // Verifying overlay
+                          if (_verifying)
+                            Container(
+                              color: Colors.black.withOpacity(0.3),
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (_captured)
+                                      Icon(Icons.check_circle, color: Colors.green.shade400, size: 48)
+                                    else
+                                      CircularProgressIndicator(color: scheme.primary),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      _captured ? '验证通过' : '正在验证...',
+                                      style: TextStyle(
+                                        color: _captured ? Colors.green.shade300 : Colors.white,
+                                        fontSize: 15, fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      )
+                    : Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: scheme.primary),
+                            const SizedBox(height: 12),
+                            Text('正在启动相机...', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Hint
+          Text(
+            '请将面部置于框内，点击按钮验证',
+            style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          // Capture button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: (_cameraReady && !_verifying) ? _captureAndVerify : null,
+                icon: const Icon(Icons.camera_alt_outlined, size: 20),
+                label: Text(_verifying ? '验证中...' : '拍摄验证'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+        ],
+      ),
+    );
   }
 }
 

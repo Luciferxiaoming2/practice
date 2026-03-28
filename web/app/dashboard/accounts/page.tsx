@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion"
 import { getUsers, createUser, resetPassword, resetFace, updateUser, getRoles, type User, type Role } from "@/lib/api"
+import LocationPicker from "@/components/admin/LocationPicker"
 
 export default function AccountsPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -84,6 +85,7 @@ export default function AccountsPage() {
                     <th className="px-5 py-3 text-left font-medium">角色</th>
                     <th className="px-5 py-3 text-left font-medium">状态</th>
                     <th className="px-5 py-3 text-left font-medium">人脸</th>
+                    <th className="px-5 py-3 text-left font-medium">打卡规则</th>
                     <th className="px-5 py-3 text-left font-medium">操作</th>
                   </tr>
                 </thead>
@@ -106,6 +108,24 @@ export default function AccountsPage() {
                         <Badge variant={u.face_enrolled ? "success" : "outline"}>
                           {u.face_enrolled ? "已录入" : "未录入"}
                         </Badge>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {u.require_location && (
+                            <Badge variant="default">
+                              地点 {u.location_radius ? `${u.location_radius}m` : ""}
+                            </Badge>
+                          )}
+                          {u.require_time && (
+                            <Badge variant="default">
+                              时间 {u.checkin_time_start && u.checkin_time_end ? `${u.checkin_time_start}-${u.checkin_time_end}` : ""}
+                            </Badge>
+                          )}
+                          {u.require_face && <Badge variant="default">人脸</Badge>}
+                          {!u.require_location && !u.require_time && !u.require_face && (
+                            <span className="text-xs text-muted-foreground">未配置</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex gap-2">
@@ -358,7 +378,7 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
   }
 
   return (
-    <Modal title={`打卡规则 — ${user.full_name}`} onClose={onClose}>
+    <Modal title={`打卡规则 — ${user.full_name}`} onClose={onClose} wide>
       <form className="space-y-4" onSubmit={handleSave}>
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-medium">
@@ -368,13 +388,27 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
             要求地点打卡
           </label>
           {rules.require_location && (
-            <div className="grid grid-cols-3 gap-2 pl-6">
-              <Input type="number" step="any" placeholder="纬度" value={rules.location_lat}
-                onChange={(e) => setRules({ ...rules, location_lat: e.target.value })} />
-              <Input type="number" step="any" placeholder="经度" value={rules.location_lng}
-                onChange={(e) => setRules({ ...rules, location_lng: e.target.value })} />
-              <Input type="number" step="any" placeholder="半径(米)" value={rules.location_radius}
-                onChange={(e) => setRules({ ...rules, location_radius: e.target.value })} />
+            <div className="space-y-2 pl-6">
+              <LocationPicker
+                lat={rules.location_lat}
+                lng={rules.location_lng}
+                radius={rules.location_radius}
+                onChange={(lat, lng) => setRules({ ...rules, location_lat: String(lat), location_lng: String(lng) })}
+              />
+              <div className="grid grid-cols-3 gap-2">
+                <Field label="纬度">
+                  <Input type="number" step="any" placeholder="30.2741" value={rules.location_lat}
+                    onChange={(e) => setRules({ ...rules, location_lat: e.target.value })} />
+                </Field>
+                <Field label="经度">
+                  <Input type="number" step="any" placeholder="120.1551" value={rules.location_lng}
+                    onChange={(e) => setRules({ ...rules, location_lng: e.target.value })} />
+                </Field>
+                <Field label="半径(米)">
+                  <Input type="number" step="any" placeholder="200" value={rules.location_radius}
+                    onChange={(e) => setRules({ ...rules, location_radius: e.target.value })} />
+                </Field>
+              </div>
             </div>
           )}
         </div>
@@ -387,10 +421,14 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
           </label>
           {rules.require_time && (
             <div className="grid grid-cols-2 gap-2 pl-6">
-              <Input type="time" value={rules.checkin_time_start}
-                onChange={(e) => setRules({ ...rules, checkin_time_start: e.target.value })} />
-              <Input type="time" value={rules.checkin_time_end}
-                onChange={(e) => setRules({ ...rules, checkin_time_end: e.target.value })} />
+              <Field label="开始时间">
+                <Input type="time" value={rules.checkin_time_start}
+                  onChange={(e) => setRules({ ...rules, checkin_time_start: e.target.value })} />
+              </Field>
+              <Field label="结束时间">
+                <Input type="time" value={rules.checkin_time_end}
+                  onChange={(e) => setRules({ ...rules, checkin_time_end: e.target.value })} />
+              </Field>
             </div>
           )}
         </div>
@@ -410,14 +448,14 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
 }
 
 /* ── 通用组件 ─────────────────────────────────────────── */
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 35 }}
-        className="bg-card rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6"
+        className={`bg-card rounded-2xl shadow-xl w-full ${wide ? "max-w-lg" : "max-w-sm"} mx-4 p-6 max-h-[90vh] overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
         style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.6)" }}
       >
