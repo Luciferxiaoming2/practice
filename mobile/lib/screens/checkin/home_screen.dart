@@ -1,12 +1,8 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
-import 'package:amap_flutter_location/amap_flutter_location.dart';
-import 'package:amap_flutter_location/amap_location_option.dart';
-import 'package:permission_handler/permission_handler.dart';
 import '../../providers/auth_provider.dart';
-import '../../core/local_store.dart';
+import '../../providers/checkin_provider.dart';
+import '../../services/location_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,15 +11,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _checking = false;
-  String? _result;
-  bool _success = false;
-
-  // 高德定位
-  final AMapFlutterLocation _locationPlugin = AMapFlutterLocation();
-  StreamSubscription<Map<String, Object>>? _locationSub;
-  double? _currentLat;
-  double? _currentLng;
+  final _locationService = LocationService();
+  double? _lat;
+  double? _lng;
+  String? _address;
+  bool _locationReady = false;
 
   @override
   void initState() {
@@ -31,315 +23,168 @@ class _HomeScreenState extends State<HomeScreen> {
     _initLocation();
   }
 
+  Future<void> _initLocation() async {
+    final granted = await _locationService.requestPermission();
+    if (!granted) return;
+    _locationService.onLocationChanged = (lat, lng, address) {
+      if (mounted) {
+        setState(() {
+          _lat = lat;
+          _lng = lng;
+          _address = address;
+          _locationReady = true;
+        });
+      }
+    };
+    _locationService.startListening();
+  }
+
   @override
   void dispose() {
-    _locationSub?.cancel();
-    _locationPlugin.destroy();
+    _locationService.stopListening();
     super.dispose();
   }
 
-  Future<void> _initLocation() async {
-    // 请求定位权限
-    await Permission.location.request();
-
-    _locationPlugin.setLocationOption(AMapLocationOption(
-      onceLocation: false,
-      needAddress: false,
-      locationInterval: 5000,
-    ));
-
-    _locationSub = _locationPlugin.onLocationChanged().listen((result) {
-      final lat = result['latitude'] as double?;
-      final lng = result['longitude'] as double?;
-      if (lat != null && lng != null) {
-        setState(() {
-          _currentLat = lat;
-          _currentLng = lng;
-        });
-      }
-    });
-
-    _locationPlugin.startLocation();
-  }
-
-  double _distanceBetween(double lat1, double lng1, double lat2, double lng2) {
-    // 简单 Haversine 近似（米）
-    const r = 6371000.0;
-    final dLat = (lat2 - lat1) * 3.14159265358979 / 180;
-    final dLng = (lng2 - lng1) * 3.14159265358979 / 180;
-    final a = (dLat / 2) * (dLat / 2) +
-        (lat1 * 3.14159265358979 / 180).abs() *
-            (lat2 * 3.14159265358979 / 180).abs() *
-            (dLng / 2) *
-            (dLng / 2);
-    return r * 2 * (a < 1 ? a : 1);
-  }
-
   Future<void> _doCheckin() async {
-    final user = context.read<AuthProvider>().currentUser;
-    if (user == null) return;
-
-    setState(() {
-      _checking = true;
-      _result = null;
-    });
-
-    try {
-      double? lat = _currentLat;
-      double? lng = _currentLng;
-
-      // 地点验证
-      if (user.requireLocation) {
-        if (lat == null || lng == null) {
-          setState(() {
-            _result = '正在获取位置，请稍后重试';
-            _success = false;
-          });
-          return;
-        }
-        if (user.locationLat != null &&
-            user.locationLng != null &&
-            user.locationRadius != null) {
-          final dist = _distanceBetween(
-              lat, lng, user.locationLat!, user.locationLng!);
-          if (dist > user.locationRadius!) {
-            setState(() {
-              _result = '不在允许打卡范围内（距离 ${dist.toStringAsFixed(0)}m）';
-              _success = false;
-            });
-            return;
-          }
-        }
-      }
-
-      // 时间验证
-      if (user.requireTime &&
-          user.checkinTimeStart != null &&
-          user.checkinTimeEnd != null) {
-        final now = TimeOfDay.now();
-        final start = _parseTime(user.checkinTimeStart!);
-        final end = _parseTime(user.checkinTimeEnd!);
-        final nowMin = now.hour * 60 + now.minute;
-        final startMin = start.hour * 60 + start.minute;
-        final endMin = end.hour * 60 + end.minute;
-        if (nowMin < startMin || nowMin > endMin) {
-          setState(() {
-            _result = '不在允许打卡时间段内（${user.checkinTimeStart} ~ ${user.checkinTimeEnd}）';
-            _success = false;
-          });
-          return;
-        }
-      }
-
-      // TODO: 人脸识别验证（接入高德/第三方 SDK 后在此处调用）
-
-      // TODO: 后期替换为 dio.post('/checkins/', ...)
-      await LocalStore.addCheckin(
-        userId: user.id,
-        lat: lat,
-        lng: lng,
-        status: 'ok',
-      );
-
-      setState(() {
-        _result = '打卡成功 ✓';
-        _success = true;
-      });
-    } catch (e) {
-      setState(() {
-        _result = '打卡失败，请重试';
-        _success = false;
-      });
-    } finally {
-      setState(() => _checking = false);
-    }
-  }
-
-  TimeOfDay _parseTime(String t) {
-    final parts = t.split(':');
-    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+    final checkin = context.read<CheckinProvider>();
+    await checkin.doCheckin(_lat, _lng);
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final user = auth.currentUser;
     final scheme = Theme.of(context).colorScheme;
+    final user = context.watch<AuthProvider>().currentUser;
+    final checkin = context.watch<CheckinProvider>();
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12 ? '上午好' : (hour < 18 ? '下午好' : '晚上好');
 
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [scheme.primary.withOpacity(0.06), scheme.surface],
+            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [scheme.primary.withOpacity(0.08), scheme.surface],
           ),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 顶部栏
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '你好，${user?.fullName ?? ''}',
-                          style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          _todayString(),
-                          style: TextStyle(
-                              fontSize: 13,
-                              color: scheme.onSurface.withOpacity(0.5)),
-                        ),
-                      ],
+                const SizedBox(height: 20),
+                // Greeting
+                Row(children: [
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('$greeting，${user?.fullName ?? ''}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(_todayStr(), style: TextStyle(fontSize: 13, color: scheme.onSurface.withOpacity(0.5))),
+                    ],
+                  )),
+                  Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(colors: [scheme.primary, scheme.primary.withOpacity(0.7)]),
                     ),
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => context.go('/history'),
-                          icon: CircleAvatar(
-                            backgroundColor: scheme.primary.withOpacity(0.12),
-                            child: Icon(Icons.history,
-                                color: scheme.primary, size: 20),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => context.go('/profile'),
-                          icon: CircleAvatar(
-                            backgroundColor: scheme.primary.withOpacity(0.12),
-                            child: Icon(Icons.person_outline,
-                                color: scheme.primary),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                    child: Center(child: Text(
+                      user?.fullName.isNotEmpty == true ? user!.fullName[0] : '?',
+                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    )),
+                  ),
+                ]),
+
+                const SizedBox(height: 24),
+
+                // Location card
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                  ),
+                  child: Row(children: [
+                    Icon(Icons.location_on_outlined, color: _locationReady ? scheme.primary : scheme.onSurface.withOpacity(0.3), size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(
+                      _locationReady
+                          ? (_address ?? '${_lat?.toStringAsFixed(4)}, ${_lng?.toStringAsFixed(4)}')
+                          : '正在获取定位...',
+                      style: TextStyle(fontSize: 13, color: _locationReady ? scheme.onSurface : scheme.onSurface.withOpacity(0.4)),
+                    )),
+                    if (_locationReady) Icon(Icons.check_circle, color: Colors.green.shade400, size: 18),
+                  ]),
                 ),
 
-                // 当前位置提示
-                if (_currentLat != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.location_on,
-                            size: 13,
-                            color: scheme.primary.withOpacity(0.6)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${_currentLat!.toStringAsFixed(5)}, ${_currentLng!.toStringAsFixed(5)}',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: scheme.onSurface.withOpacity(0.4)),
-                        ),
-                      ],
-                    ),
-                  ),
+                const Spacer(),
 
-                const SizedBox(height: 40),
-
-                // 打卡按钮
-                Center(
-                  child: GestureDetector(
-                    onTap: _checking ? null : _doCheckin,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 180,
-                      height: 180,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: _success
-                              ? [
-                                  Colors.green.shade400,
-                                  Colors.green.shade700
-                                ]
-                              : [
-                                  scheme.primary,
-                                  Color.lerp(
-                                      scheme.primary, Colors.black, 0.3)!
-                                ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (_success ? Colors.green : scheme.primary)
-                                .withOpacity(0.4),
-                            blurRadius: 32,
-                            offset: const Offset(0, 12),
-                          ),
-                        ],
-                      ),
-                      child: _checking
-                          ? const Center(
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 3))
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  _success
-                                      ? Icons.check_circle_outline
-                                      : Icons.fingerprint,
-                                  color: Colors.white,
-                                  size: 52,
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  '点击打卡',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // 结果提示
-                if (_result != null)
-                  AnimatedOpacity(
-                    opacity: 1,
+                // Check-in button
+                GestureDetector(
+                  onTap: checkin.checkinLoading ? null : _doCheckin,
+                  child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 14),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: _success
-                            ? Colors.green.withOpacity(0.1)
-                            : scheme.error.withOpacity(0.1),
+                    width: 180, height: 180,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft, end: Alignment.bottomRight,
+                        colors: checkin.checkinSuccess && checkin.checkinResult != null
+                            ? [Colors.green.shade400, Colors.green.shade600]
+                            : [scheme.primary, Color.lerp(scheme.primary, Colors.black, 0.3)!],
                       ),
-                      child: Text(
-                        _result!,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: _success
-                              ? Colors.green.shade700
-                              : scheme.error,
-                          fontWeight: FontWeight.w500,
+                      boxShadow: [
+                        BoxShadow(
+                          color: (checkin.checkinSuccess && checkin.checkinResult != null ? Colors.green : scheme.primary).withOpacity(0.4),
+                          blurRadius: 24, offset: const Offset(0, 8),
                         ),
-                      ),
+                      ],
                     ),
+                    child: Center(child: checkin.checkinLoading
+                        ? const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                        : Column(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(
+                              checkin.checkinSuccess && checkin.checkinResult != null ? Icons.check : Icons.fingerprint,
+                              color: Colors.white, size: 48,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              checkin.checkinSuccess && checkin.checkinResult != null ? '已打卡' : '打卡',
+                              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                          ])),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Result
+                if (checkin.checkinResult != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: (checkin.checkinSuccess ? Colors.green : scheme.error).withOpacity(0.1),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(
+                        checkin.checkinSuccess ? Icons.check_circle_outline : Icons.error_outline,
+                        color: checkin.checkinSuccess ? Colors.green.shade600 : scheme.error, size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        checkin.checkinResult!,
+                        style: TextStyle(color: checkin.checkinSuccess ? Colors.green.shade700 : scheme.error, fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                    ]),
                   ),
 
                 const Spacer(),
 
-                // 打卡规则摘要
+                // Rules summary
                 if (user != null) _RulesSummary(user: user),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -348,9 +193,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _todayString() {
+  String _todayStr() {
     final now = DateTime.now();
-    return '${now.year}年${now.month}月${now.day}日';
+    const weeks = ['一', '二', '三', '四', '五', '六', '日'];
+    return '${now.month}月${now.day}日 周${weeks[now.weekday - 1]}';
   }
 }
 
@@ -361,80 +207,51 @@ class _RulesSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final rules = <_Rule>[];
+    if (user.requireLocation) {
+      rules.add(_Rule(Icons.location_on_outlined, '位置验证', '${user.locationRadius?.toInt() ?? 0}m 范围内'));
+    }
+    if (user.requireTime) {
+      rules.add(_Rule(Icons.schedule_outlined, '时间限制', '${user.checkinTimeStart ?? ''} - ${user.checkinTimeEnd ?? ''}'));
+    }
+    if (user.requireFace) {
+      rules.add(_Rule(Icons.face_outlined, '人脸验证', '需要人脸识别'));
+    }
+    if (rules.isEmpty) {
+      rules.add(_Rule(Icons.check_circle_outline, '无特殊要求', '随时随地可打卡'));
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(16),
-        color: scheme.surfaceContainerHighest.withOpacity(0.4),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '打卡要求',
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: scheme.onSurface.withOpacity(0.5)),
-          ),
-          const SizedBox(height: 8),
-          _RuleRow(
-              icon: Icons.location_on_outlined,
-              label: '地点验证',
-              enabled: user.requireLocation),
-          _RuleRow(
-              icon: Icons.access_time_outlined,
-              label: '时间限制',
-              enabled: user.requireTime),
-          _RuleRow(
-              icon: Icons.face_outlined,
-              label: '人脸识别',
-              enabled: user.requireFace),
+          Text('打卡规则', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: scheme.onSurface.withOpacity(0.6))),
+          const SizedBox(height: 10),
+          ...rules.map((r) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(children: [
+                  Icon(r.icon, size: 16, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  Text(r.label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  const Spacer(),
+                  Text(r.detail, style: TextStyle(fontSize: 12, color: scheme.onSurface.withOpacity(0.5))),
+                ]),
+              )),
         ],
       ),
     );
   }
 }
 
-class _RuleRow extends StatelessWidget {
+class _Rule {
   final IconData icon;
   final String label;
-  final bool enabled;
-  const _RuleRow(
-      {required this.icon, required this.label, required this.enabled});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          Icon(icon,
-              size: 15,
-              color: enabled
-                  ? scheme.primary
-                  : scheme.onSurface.withOpacity(0.3)),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-                fontSize: 13,
-                color: enabled
-                    ? scheme.onSurface
-                    : scheme.onSurface.withOpacity(0.3)),
-          ),
-          const Spacer(),
-          Text(
-            enabled ? '已开启' : '未要求',
-            style: TextStyle(
-                fontSize: 12,
-                color: enabled
-                    ? scheme.primary
-                    : scheme.onSurface.withOpacity(0.3)),
-          ),
-        ],
-      ),
-    );
-  }
+  final String detail;
+  _Rule(this.icon, this.label, this.detail);
 }

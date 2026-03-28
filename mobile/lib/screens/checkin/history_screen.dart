@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
-import '../../providers/auth_provider.dart';
-import '../../core/local_store.dart';
+import '../../providers/checkin_provider.dart';
+import '../../widgets/empty_state.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -11,155 +10,152 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  List<Map<String, dynamic>> _records = [];
-  bool _loading = true;
-
   @override
   void initState() {
     super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final user = context.read<AuthProvider>().currentUser;
-    if (user == null) return;
-    // TODO: 后期替换为 dio.get('/checkins/', queryParameters: {'user_id': user.id})
-    final records = await LocalStore.getCheckins(userId: user.id);
-    setState(() {
-      _records = records;
-      _loading = false;
-    });
-  }
-
-  String _fmtTime(String ts) {
-    final d = DateTime.tryParse(ts);
-    if (d == null) return ts;
-    return '${d.month}月${d.day}日 ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _statusLabel(String s) {
-    switch (s) {
-      case 'ok':
-        return '正常';
-      case 'location_fail':
-        return '位置异常';
-      case 'time_fail':
-        return '时间异常';
-      case 'face_fail':
-        return '人脸异常';
-      default:
-        return s;
-    }
-  }
-
-  Color _statusColor(String s, ColorScheme scheme) {
-    switch (s) {
-      case 'ok':
-        return Colors.green;
-      case 'location_fail':
-        return scheme.error;
-      case 'time_fail':
-        return Colors.orange;
-      case 'face_fail':
-        return scheme.error;
-      default:
-        return scheme.onSurface;
-    }
+    Future.microtask(() => context.read<CheckinProvider>().loadHistory());
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final checkin = context.watch<CheckinProvider>();
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          onPressed: () => context.go('/home'),
-        ),
-        title: const Text('打卡记录',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-        centerTitle: true,
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _records.isEmpty
-              ? Center(
-                  child: Text('暂无打卡记录',
-                      style: TextStyle(
-                          color: scheme.onSurface.withOpacity(0.4))),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _records.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) {
-                      final r = _records[i];
-                      final status = (r['status'] ?? 'ok') as String;
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          color:
-                              scheme.surfaceContainerHighest.withOpacity(0.3),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              status == 'ok'
-                                  ? Icons.check_circle_outline
-                                  : Icons.error_outline,
-                              color: _statusColor(status, scheme),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _fmtTime(r['timestamp'] ?? ''),
-                                    style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500),
+      appBar: AppBar(title: const Text('打卡记录')),
+      body: Column(
+        children: [
+          // Date filter
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(children: [
+              _DateChip(
+                label: checkin.filterDateFrom != null ? _fmt(checkin.filterDateFrom!) : '开始日期',
+                active: checkin.filterDateFrom != null,
+                onTap: () async {
+                  final d = await showDatePicker(context: context, firstDate: DateTime(2024), lastDate: DateTime.now());
+                  if (d != null) checkin.setDateFilter(d, checkin.filterDateTo);
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text('至', style: TextStyle(color: scheme.onSurface.withOpacity(0.4))),
+              ),
+              _DateChip(
+                label: checkin.filterDateTo != null ? _fmt(checkin.filterDateTo!) : '结束日期',
+                active: checkin.filterDateTo != null,
+                onTap: () async {
+                  final d = await showDatePicker(context: context, firstDate: DateTime(2024), lastDate: DateTime.now());
+                  if (d != null) checkin.setDateFilter(checkin.filterDateFrom, d);
+                },
+              ),
+              const Spacer(),
+              if (checkin.filterDateFrom != null || checkin.filterDateTo != null)
+                TextButton(onPressed: checkin.clearFilter, child: const Text('重置', style: TextStyle(fontSize: 13))),
+            ]),
+          ),
+
+          // List
+          Expanded(
+            child: checkin.loading
+                ? const Center(child: CircularProgressIndicator())
+                : checkin.error != null
+                    ? EmptyState(icon: Icons.cloud_off, title: '加载失败', subtitle: checkin.error, actionLabel: '重试', onAction: () => checkin.loadHistory())
+                    : checkin.records.isEmpty
+                        ? const EmptyState(icon: Icons.history, title: '暂无打卡记录', subtitle: '打卡后记录会显示在这里')
+                        : RefreshIndicator(
+                            onRefresh: () => checkin.loadHistory(),
+                            child: ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: checkin.records.length,
+                              itemBuilder: (_, i) {
+                                final r = checkin.records[i];
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: scheme.surface,
+                                    borderRadius: BorderRadius.circular(14),
+                                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
                                   ),
-                                  if (r['lat'] != null && r['lng'] != null)
-                                    Text(
-                                      '${(r['lat'] as num).toStringAsFixed(4)}, ${(r['lng'] as num).toStringAsFixed(4)}',
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: scheme.onSurface
-                                              .withOpacity(0.4)),
+                                  child: Row(children: [
+                                    Container(
+                                      width: 40, height: 40,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: (r.isSuccess ? Colors.green : scheme.error).withOpacity(0.1),
+                                      ),
+                                      child: Icon(
+                                        r.isSuccess ? Icons.check : Icons.close,
+                                        color: r.isSuccess ? Colors.green.shade600 : scheme.error, size: 20,
+                                      ),
                                     ),
-                                ],
-                              ),
+                                    const SizedBox(width: 14),
+                                    Expanded(child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${r.timestamp.month}月${r.timestamp.day}日 ${r.timestamp.hour.toString().padLeft(2, '0')}:${r.timestamp.minute.toString().padLeft(2, '0')}',
+                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                        ),
+                                        if (r.lat != null && r.lng != null) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${r.lat!.toStringAsFixed(4)}, ${r.lng!.toStringAsFixed(4)}',
+                                            style: TextStyle(fontSize: 12, color: scheme.onSurface.withOpacity(0.4)),
+                                          ),
+                                        ],
+                                      ],
+                                    )),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(20),
+                                        color: (r.isSuccess ? Colors.green : scheme.error).withOpacity(0.1),
+                                      ),
+                                      child: Text(
+                                        r.statusLabel,
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: r.isSuccess ? Colors.green.shade700 : scheme.error),
+                                      ),
+                                    ),
+                                  ]),
+                                );
+                              },
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                color: _statusColor(status, scheme)
-                                    .withOpacity(0.1),
-                              ),
-                              child: Text(
-                                _statusLabel(status),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: _statusColor(status, scheme),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                          ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fmt(DateTime d) => '${d.month}/${d.day}';
+}
+
+class _DateChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _DateChip({required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: active ? scheme.primary.withOpacity(0.1) : scheme.surfaceContainerHighest.withOpacity(0.5),
+          border: Border.all(color: active ? scheme.primary.withOpacity(0.3) : Colors.transparent),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.calendar_today, size: 14, color: active ? scheme.primary : scheme.onSurface.withOpacity(0.4)),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(fontSize: 13, color: active ? scheme.primary : scheme.onSurface.withOpacity(0.5))),
+        ]),
+      ),
     );
   }
 }

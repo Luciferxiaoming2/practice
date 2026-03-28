@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/shared_widgets.dart';
+import '../../widgets/app_text_field.dart';
 
 class SetupPasswordScreen extends StatefulWidget {
   const SetupPasswordScreen({super.key});
@@ -32,7 +33,7 @@ class _SetupPasswordScreenState extends State<SetupPasswordScreen> {
     } catch (_) {
       setState(() => _error = '修改失败，请重试');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -52,9 +53,9 @@ class _SetupPasswordScreenState extends State<SetupPasswordScreen> {
               const SizedBox(height: 8),
               Text('首次登录需要修改初始密码', style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
               const SizedBox(height: 32),
-              _buildField('新密码', _pwdCtrl, obscure: true),
+              AppTextField(label: '新密码', controller: _pwdCtrl, obscure: true, prefixIcon: Icons.lock_outline),
               const SizedBox(height: 16),
-              _buildField('确认密码', _confirmCtrl, obscure: true),
+              AppTextField(label: '确认密码', controller: _confirmCtrl, obscure: true, prefixIcon: Icons.lock_outline),
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 13)),
@@ -67,26 +68,4 @@ class _SetupPasswordScreenState extends State<SetupPasswordScreen> {
       ),
     );
   }
-
-  Widget _buildField(String label, TextEditingController ctrl, {bool obscure = false}) {
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 6),
-        TextField(
-          controller: ctrl,
-          obscureText: obscure,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: scheme.surfaceContainerHighest.withOpacity(0.5),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          ),
-        ),
-      ],
-    );
-  }
 }
-

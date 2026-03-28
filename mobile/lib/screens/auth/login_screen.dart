@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/shared_widgets.dart';
+import '../../widgets/app_text_field.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,7 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
     await auth.login(_usernameCtrl.text.trim(), _passwordCtrl.text);
     if (!mounted) return;
     if (auth.error != null) return;
-    // Route based on account state
     if (auth.needsSetup) {
       context.go('/setup/password');
     } else {
@@ -49,18 +49,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // Logo
                   Container(
-                    width: 72,
-                    height: 72,
+                    width: 72, height: 72,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       gradient: LinearGradient(
                         colors: [scheme.primary, scheme.primary.withOpacity(0.7)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                        begin: Alignment.topLeft, end: Alignment.bottomRight,
                       ),
-                      boxShadow: [
-                        BoxShadow(color: scheme.primary.withOpacity(0.35), blurRadius: 16, offset: const Offset(0, 6)),
-                      ],
+                      boxShadow: [BoxShadow(color: scheme.primary.withOpacity(0.35), blurRadius: 16, offset: const Offset(0, 6))],
                     ),
                     child: const Icon(Icons.fingerprint, color: Colors.white, size: 36),
                   ),
@@ -78,41 +74,29 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 8)),
-                        BoxShadow(color: Colors.white.withOpacity(0.6), blurRadius: 0, offset: const Offset(0, 1), spreadRadius: 0),
                       ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _Field(label: '账号', controller: _usernameCtrl, hint: '请输入账号'),
+                        AppTextField(label: '账号', controller: _usernameCtrl, hint: '请输入账号', prefixIcon: Icons.person_outline),
                         const SizedBox(height: 16),
-                        _Field(label: '密码', controller: _passwordCtrl, hint: '请输入密码', obscure: true),
+                        AppTextField(label: '密码', controller: _passwordCtrl, hint: '请输入密码', obscure: true, prefixIcon: Icons.lock_outline, onSubmitted: (_) => _submit()),
                         if (auth.error != null) ...[
                           const SizedBox(height: 12),
                           Text(auth.error!, style: TextStyle(color: scheme.error, fontSize: 13)),
                         ],
                         const SizedBox(height: 24),
-                        PrimaryButton(
-                          label: '登录',
-                          loading: auth.loading,
-                          onPressed: _submit,
-                        ),
+                        PrimaryButton(label: '登录', loading: auth.loading, onPressed: _submit),
                         const SizedBox(height: 16),
                         Center(
                           child: GestureDetector(
                             onTap: () => context.go('/register'),
-                            child: Text.rich(
-                              TextSpan(
-                                text: '没有账号？',
-                                style: TextStyle(fontSize: 13, color: scheme.onSurface.withOpacity(0.5)),
-                                children: [
-                                  TextSpan(
-                                    text: '立即注册',
-                                    style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w600),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            child: Text.rich(TextSpan(
+                              text: '没有账号？',
+                              style: TextStyle(fontSize: 13, color: scheme.onSurface.withOpacity(0.5)),
+                              children: [TextSpan(text: '立即注册', style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w600))],
+                            )),
                           ),
                         ),
                       ],
@@ -127,36 +111,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-
-class _Field extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final String hint;
-  final bool obscure;
-  const _Field({required this.label, required this.controller, required this.hint, this.obscure = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          obscureText: obscure,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: scheme.onSurface.withOpacity(0.35), fontSize: 14),
-            filled: true,
-            fillColor: scheme.surfaceContainerHighest.withOpacity(0.5),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          ),
-        ),
-      ],
-    );
-  }
-}
-

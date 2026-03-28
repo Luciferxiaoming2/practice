@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/user.dart';
 
 /// 本地数据存储 — 替代服务器 API
 /// TODO: 后期替换为服务器API调用，本类仅保留做离线缓存
