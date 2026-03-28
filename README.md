@@ -14,26 +14,48 @@ one/
 
 ## 快速启动
 
-### 后端
+### 1. 后端（FastAPI）
 ```bash
-D:\uv\venvs\practice\Scripts\activate
 cd backend
-uvicorn app.main:app --reload
+D:\uv\venvs\practice\Scripts\activate
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 # API 文档: http://localhost:8000/docs
 ```
 
-### Web 管理端
+### 2. Web 管理端（Next.js）
 ```bash
 cd web
-npm run dev
+npm run dev -- --port 3000
 # 访问: http://localhost:3000
 ```
 
-### 移动端
+### 3. 移动端（Flutter + 真机 USB 调试）
+
+**Step 1：USB 连接真机并开启开发者模式 + USB 调试**
+
+**Step 2：设置 adb 端口转发**（让真机通过 USB 访问电脑的后端）
+```bash
+adb reverse tcp:8000 tcp:8000
+```
+
+**Step 3：确认设备已连接**
+```bash
+flutter devices
+```
+
+**Step 4：运行到真机**
 ```bash
 cd mobile
-flutter run
+flutter run -d <设备ID>
 ```
+
+> `<设备ID>` 从 `flutter devices` 输出中获取，例如 `401F5U03ZM0000H`。
+
+**注意：** 使用 `adb reverse` 后，移动端 API 地址保持 `http://127.0.0.1:8000` 即可，无需改为局域网 IP。
+
+### 一键启动（Windows）
+
+也可以直接双击项目根目录的 `start.bat` 启动后端和 Web 端，双击 `stop.bat` 停止。移动端仍需手动执行上述 Step 2-4。
 
 ---
 
@@ -57,10 +79,11 @@ SECRET_KEY = "change-me-in-production"
 ```
 
 ### 3. 移动端 API 地址
-编辑 `mobile/lib/core/api.dart`：
-- Android 模拟器使用 `http://10.0.2.2:8000`（默认已配置）
-- iOS 模拟器使用 `http://localhost:8000`（取消注释对应行）
-- 真机调试需替换为电脑的局域网 IP，例如 `http://192.168.1.x:8000`
+配置文件：`mobile/lib/core/config.dart`
+- **真机 USB 调试（推荐）**：保持 `http://127.0.0.1:8000`，配合 `adb reverse tcp:8000 tcp:8000`
+- **Android 模拟器**：使用 `http://10.0.2.2:8000`
+- **iOS 模拟器**：使用 `http://127.0.0.1:8000`
+- **Wi-Fi 调试**：替换为电脑局域网 IP，如 `http://192.168.1.x:8000`（需开放防火墙 8000 端口）
 
 ### 4. Android 权限配置
 在 `mobile/android/app/src/main/AndroidManifest.xml` 中添加：

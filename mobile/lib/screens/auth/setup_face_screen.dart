@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:camera/camera.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/face_service.dart';
 import '../../widgets/shared_widgets.dart';
 
 class SetupFaceScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
   bool _loading = false;
   bool _switching = false;
   String? _error;
+  String? _capturedPath;
 
   @override
   void initState() {
@@ -28,11 +30,18 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
   }
 
   Future<void> _initCamera() async {
-    _cameras = await availableCameras();
-    // 优先使用前置摄像头
-    _cameraIndex = _cameras.indexWhere((c) => c.lensDirection == CameraLensDirection.front);
-    if (_cameraIndex < 0) _cameraIndex = 0;
-    await _startCamera(_cameras[_cameraIndex]);
+    try {
+      _cameras = await availableCameras();
+      if (_cameras.isEmpty) {
+        if (mounted) setState(() => _error = '未找到可用摄像头');
+        return;
+      }
+      _cameraIndex = _cameras.indexWhere((c) => c.lensDirection == CameraLensDirection.front);
+      if (_cameraIndex < 0) _cameraIndex = 0;
+      await _startCamera(_cameras[_cameraIndex]);
+    } catch (e) {
+      if (mounted) setState(() => _error = '无法访问摄像头，请检查权限');
+    }
   }
 
   Future<void> _startCamera(CameraDescription camera) async {
@@ -51,25 +60,51 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
 
   Future<void> _capture() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
-    await _controller!.takePicture();
-    setState(() => _captured = true);
+    final xFile = await _controller!.takePicture();
+    setState(() {
+      _captured = true;
+      _capturedPath = xFile.path;
+    });
   }
 
   Future<void> _retake() async {
-    setState(() => _captured = false);
+    setState(() {
+      _captured = false;
+      _capturedPath = null;
+      _error = null;
+    });
   }
 
   Future<void> _submit() async {
-    if (!_captured) {
+    if (!_captured || _capturedPath == null) {
       setState(() => _error = '请先拍摄人脸照片');
       return;
     }
     setState(() { _loading = true; _error = null; });
     try {
-      await context.read<AuthProvider>().markFaceEnrolled();
-      if (mounted) context.go('/home');
-    } catch (_) {
-      setState(() => _error = '录入失败，请重试');
+      // 上传照片到后端进行人脸录入
+      final success = await FaceService.enrollFace(_capturedPath!);
+      if (!success) {
+        setState(() => _error = '人脸录入失败，请重试');
+        return;
+      }
+      // 更新本地状态
+      final auth = context.read<AuthProvider>();
+      await auth.markFaceEnrolled();
+      if (mounted) {
+        // 延迟一帧确保状态更新后再导航，避免 StatefulShellRoute 路由问题
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (mounted) {
+          final isAdmin = auth.currentUser?.isAdmin ?? false;
+          context.go(isAdmin ? '/admin/users' : '/home');
+        }
+      }
+    } catch (e) {
+      String msg = '录入失败，请重试';
+      if (e.toString().contains('未检测到人脸')) {
+        msg = '未检测到人脸，请确保光线充足且面部清晰';
+      }
+      setState(() => _error = msg);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -99,7 +134,6 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
               Text('请将面部置于框内，确保光线充足', style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
               const SizedBox(height: 24),
 
-              // 相机预览区域
               Expanded(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
@@ -112,22 +146,19 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
                         ? Stack(
                             fit: StackFit.expand,
                             children: [
-                              // 相机预览
                               CameraPreview(_controller!),
-                              // 人脸框引导
                               Center(
                                 child: Container(
                                   width: 200, height: 260,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(120),
                                     border: Border.all(
-                                      color: _captured ? Colors.green : Colors.white.withValues(alpha: 0.6),
+                                      color: _captured ? Colors.green : Colors.white.withOpacity(0.6),
                                       width: 3,
                                     ),
                                   ),
                                 ),
                               ),
-                              // 翻转镜头按钮
                               if (_cameras.length > 1 && !_captured)
                                 Positioned(
                                   top: 12, right: 12,
@@ -137,13 +168,12 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
                                       width: 40, height: 40,
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: Colors.black.withValues(alpha: 0.4),
+                                        color: Colors.black.withOpacity(0.4),
                                       ),
                                       child: const Icon(Icons.cameraswitch_outlined, color: Colors.white, size: 22),
                                     ),
                                   ),
                                 ),
-                              // 已拍摄提示
                               if (_captured)
                                 Positioned(
                                   bottom: 16, left: 0, right: 0,
@@ -151,7 +181,7 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                       decoration: BoxDecoration(
-                                        color: Colors.green.withValues(alpha: 0.85),
+                                        color: Colors.green.withOpacity(0.85),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: const Row(
@@ -183,7 +213,6 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
 
               const SizedBox(height: 20),
 
-              // 操作按钮
               if (!_captured)
                 OutlinedButton.icon(
                   onPressed: _cameraReady ? _capture : null,

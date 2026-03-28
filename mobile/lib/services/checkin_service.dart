@@ -7,7 +7,6 @@ class CheckinService {
       final res = await dio.post('/checkins/', data: {
         'lat': lat,
         'lng': lng,
-        'status': 'ok',
       });
       return Map<String, dynamic>.from(res.data);
     } on DioException catch (e) {

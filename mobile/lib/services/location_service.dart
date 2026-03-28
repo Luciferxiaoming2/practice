@@ -42,7 +42,7 @@ class LocationService {
       _amapClient = AMapFlutterLocation();
       _amapClient!.setLocationOption(AMapLocationOption(
         onceLocation: false,
-        locationInterval: 3000,
+        locationInterval: 1000,
         needAddress: true,
         locationMode: AMapLocationMode.Hight_Accuracy,
       ));
@@ -56,13 +56,12 @@ class LocationService {
 
         if (errorCode != null && errorCode != 0) {
           debugPrint('[LocationService] AMap error: code=$errorCode, info=${map['errorInfo']}');
-          // 出错后尝试重试
           _scheduleRetry();
           return;
         }
 
         if (la is num && lo is num && la != 0 && lo != 0) {
-          _retryCount = 0; // 成功了，重置重试计数
+          _retryCount = 0;
           _retryTimer?.cancel();
           lat = la.toDouble();
           lng = lo.toDouble();
@@ -77,10 +76,10 @@ class LocationService {
       _amapClient!.startLocation();
       debugPrint('[LocationService] AMap startLocation OK');
 
-      // 8秒后检查是否有数据
-      _retryTimer = Timer(const Duration(seconds: 8), () {
+      // 3秒后检查是否有数据
+      _retryTimer = Timer(const Duration(seconds: 3), () {
         if (lat == null) {
-          debugPrint('[LocationService] No AMap data after 8s');
+          debugPrint('[LocationService] No AMap data after 3s');
           _scheduleRetry();
         }
       });
@@ -97,7 +96,8 @@ class LocationService {
     }
     _retryCount++;
     _retryTimer?.cancel();
-    _retryTimer = Timer(Duration(seconds: 3 * _retryCount), () {
+    final delaySec = _retryCount == 1 ? 1 : 2 * _retryCount;
+    _retryTimer = Timer(Duration(seconds: delaySec), () {
       debugPrint('[LocationService] Retry #$_retryCount');
       _startAmap();
     });

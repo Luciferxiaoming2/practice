@@ -1,19 +1,25 @@
 "use client"
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Loader2, MapPin, Clock, ScanFace } from "lucide-react"
+import { Loader2, MapPin, Clock, ScanFace, Pencil, Check } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { fadeInUp, staggerContainer, staggerItem } from "@/lib/motion"
-import { getUser, resetPassword, type User } from "@/lib/api"
+import { getUser, updateUser, resetPassword, type User } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 
 export default function UserProfilePage() {
   const { userId } = useAuth()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // 编辑姓名
+  const [editingName, setEditingName] = useState(false)
+  const [nameValue, setNameValue] = useState("")
+  const [nameSaving, setNameSaving] = useState(false)
+  const [nameSuccess, setNameSuccess] = useState("")
 
   // 修改密码
   const [showPwd, setShowPwd] = useState(false)
@@ -29,6 +35,25 @@ export default function UserProfilePage() {
       .then(setUser)
       .finally(() => setLoading(false))
   }, [userId])
+
+  async function handleSaveName() {
+    if (!nameValue.trim() || nameValue.trim() === user?.full_name) {
+      setEditingName(false)
+      return
+    }
+    setNameSaving(true)
+    try {
+      const updated = await updateUser(userId!, { full_name: nameValue.trim() })
+      setUser(updated)
+      setEditingName(false)
+      setNameSuccess("姓名修改成功")
+      setTimeout(() => setNameSuccess(""), 3000)
+    } catch {
+      // keep editing state on failure
+    } finally {
+      setNameSaving(false)
+    }
+  }
 
   async function handleChangePwd(e: React.FormEvent) {
     e.preventDefault()
@@ -78,7 +103,32 @@ export default function UserProfilePage() {
             <CardContent className="p-6 space-y-4">
               <h2 className="text-base font-semibold mb-4">基本信息</h2>
               <InfoRow label="账号" value={user.username} />
-              <InfoRow label="姓名" value={user.full_name} />
+              <InfoRow label="姓名">
+                {editingName ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      className="h-8 w-40 text-sm"
+                      value={nameValue}
+                      onChange={(e) => setNameValue(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
+                      autoFocus
+                    />
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSaveName} disabled={nameSaving}>
+                      {nameSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{user.full_name}</span>
+                    <button
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => { setNameValue(user.full_name); setEditingName(true); setNameSuccess("") }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </InfoRow>
               <InfoRow label="账户状态">
                 <Badge variant={user.is_active ? "success" : "warning"}>
                   {user.is_active ? "已激活" : "待激活"}
@@ -96,6 +146,7 @@ export default function UserProfilePage() {
               </InfoRow>
 
               <div className="pt-2">
+                {nameSuccess && <p className="text-green-600 text-xs mb-3">{nameSuccess}</p>}
                 {pwdSuccess && <p className="text-green-600 text-xs mb-3">{pwdSuccess}</p>}
                 {!showPwd ? (
                   <Button variant="outline" size="sm" onClick={() => { setShowPwd(true); setPwdError(""); setPwdSuccess("") }}>

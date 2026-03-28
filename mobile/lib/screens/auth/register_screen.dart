@@ -40,7 +40,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() => _error = auth.error);
       return;
     }
-    context.go('/setup/password');
+    if (auth.needsSetup) {
+      context.go('/setup/password');
+    } else {
+      context.go('/home');
+    }
   }
 
   @override

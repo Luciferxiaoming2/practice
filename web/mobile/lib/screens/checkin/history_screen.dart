@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/checkin.dart';
 import '../../providers/checkin_provider.dart';
 import '../../widgets/empty_state.dart';
 
@@ -86,6 +87,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ]),
           ),
 
+          // Stats summary
+          if (!checkin.loading && checkin.error == null && checkin.records.isNotEmpty)
+            _StatsSummary(records: checkin.records),
+
           // List
           Expanded(
             child: checkin.loading
@@ -107,7 +112,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   isSuccess: r.isSuccess,
                                   time: '${r.timestamp.hour.toString().padLeft(2, '0')}:${r.timestamp.minute.toString().padLeft(2, '0')}',
                                   date: '${r.timestamp.month}月${r.timestamp.day}日',
-                                  statusRaw: r.status,
+                                  status: r.statusLabel,
                                   location: r.lat != null && r.lng != null
                                       ? '${r.lat!.toStringAsFixed(4)}, ${r.lng!.toStringAsFixed(4)}'
                                       : null,
@@ -130,7 +135,7 @@ class _TimelineItem extends StatelessWidget {
   final bool isSuccess;
   final String time;
   final String date;
-  final String statusRaw;
+  final String status;
   final String? location;
   final bool showLine;
 
@@ -138,26 +143,10 @@ class _TimelineItem extends StatelessWidget {
     required this.isSuccess,
     required this.time,
     required this.date,
-    required this.statusRaw,
+    required this.status,
     this.location,
     required this.showLine,
   });
-
-  String get _statusBadgeText => switch (statusRaw) {
-        'ok' => '正常打卡',
-        'location_fail' => '位置异常',
-        'time_fail' => '迟到异常',
-        'face_fail' => '人脸异常',
-        _ => statusRaw,
-      };
-
-  String get _faceText => switch (statusRaw) {
-        'ok' => '人脸验证通过',
-        'location_fail' => '位置异常',
-        'time_fail' => '迟到异常',
-        'face_fail' => '人脸异常',
-        _ => statusRaw,
-      };
 
   @override
   Widget build(BuildContext context) {
@@ -218,7 +207,6 @@ class _TimelineItem extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top row: time, date, status badge
                   Row(
                     children: [
                       Text(time, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
@@ -233,53 +221,32 @@ class _TimelineItem extends StatelessWidget {
                           border: Border.all(color: statusBorder),
                         ),
                         child: Text(
-                          _statusBadgeText,
+                          isSuccess ? '正常打卡' : status,
                           style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor),
                         ),
                       ),
                     ],
                   ),
-                  // Detail section: location + face verification
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFF1F5F9)),
+                  if (location != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFF1F5F9)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF94A3B8)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(location!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF475569))),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Column(
-                      children: [
-                        // Location row
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF94A3B8)),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                location ?? '无位置信息',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF475569)),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        // Face verification row
-                        Row(
-                          children: [
-                            const Icon(Icons.face_outlined, size: 14, color: Color(0xFF94A3B8)),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                _faceText,
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF475569)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -322,6 +289,71 @@ class _DateChip extends StatelessWidget {
             ),
           ),
         ]),
+      ),
+    );
+  }
+}
+
+// ── Stats summary ──
+class _StatsSummary extends StatelessWidget {
+  final List<CheckIn> records;
+  const _StatsSummary({required this.records});
+
+  @override
+  Widget build(BuildContext context) {
+    final total = records.length;
+    final success = records.where((r) => r.isSuccess).length;
+    final fail = total - success;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F3FF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF7C3AED).withOpacity(0.12)),
+      ),
+      child: Row(
+        children: [
+          _StatItem(label: '总计', value: '$total', color: const Color(0xFF7C3AED)),
+          _statDivider(),
+          _StatItem(label: '正常', value: '$success', color: const Color(0xFF10B981)),
+          _statDivider(),
+          _StatItem(label: '异常', value: '$fail', color: const Color(0xFFF97316)),
+        ],
+      ),
+    );
+  }
+
+  Widget _statDivider() => Container(
+        width: 1,
+        height: 28,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        color: const Color(0xFF7C3AED).withOpacity(0.1),
+      );
+}
+
+class _StatItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _StatItem({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: color),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+          ),
+        ],
       ),
     );
   }

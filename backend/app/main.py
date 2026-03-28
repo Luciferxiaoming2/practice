@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base, SessionLocal
-from app.routers import auth, users, checkins, roles
+from app.routers import auth, users, checkins, roles, face
 from app.seed import seed_rbac
 
 
@@ -32,6 +32,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(checkins.router)
 app.include_router(roles.router)
+app.include_router(face.router)
 
 
 @app.get("/")

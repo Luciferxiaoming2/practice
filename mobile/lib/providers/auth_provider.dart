@@ -96,6 +96,17 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateFullName(String fullName) async {
+    if (currentUser == null) return;
+    final raw = await authService.updateUser(currentUser!.id, {
+      'full_name': fullName,
+    });
+    currentUser = User.fromJson(raw);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('cached_user', jsonEncode(raw));
+    notifyListeners();
+  }
+
   Future<void> refreshUser() async {
     if (currentUser == null) return;
     try {

@@ -13,6 +13,7 @@ class CheckInCreate(BaseModel):
 class CheckInOut(BaseModel):
     id: int
     user_id: int
+    user_name: Optional[str] = None
     timestamp: datetime
     lat: Optional[float]
     lng: Optional[float]

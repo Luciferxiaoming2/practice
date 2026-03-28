@@ -1,0 +1,481 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Home,
+  History,
+  User,
+  ScanFace,
+  MapPin,
+  Clock,
+  CheckCircle2,
+  ChevronRight,
+  LogOut,
+  Bell,
+  ShieldCheck,
+  AlertCircle
+} from 'lucide-react';
+
+// --- Components ---
+
+// 1. Login Screen
+const LoginScreen = ({ onLogin }) => {
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setIsAnimating(true);
+    setTimeout(() => {
+      onLogin();
+    }, 800);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white text-slate-900 p-8 relative overflow-hidden">
+      {/* Background decoration - Light soft gradients */}
+      <div className="absolute top-[-10%] left-[-20%] w-96 h-96 bg-purple-200/50 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-20%] w-96 h-96 bg-fuchsia-200/50 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div className="flex-1 flex flex-col justify-center relative z-10">
+        <div className="mb-12">
+          <h1 className="text-4xl font-light tracking-widest mb-2 text-slate-800">END<span className="font-bold text-purple-600">PAGE</span></h1>
+          <h2 className="text-xl text-slate-500 font-light tracking-wider">熵析云枢打卡系统</h2>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-600 pl-1">工号 / 账号</label>
+            <input
+              type="text"
+              defaultValue="EP-10024"
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-purple-400 focus:ring-4 focus:ring-purple-500/10 transition-all shadow-sm"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-600 pl-1">密码</label>
+            <input
+              type="password"
+              defaultValue="••••••••"
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-purple-400 focus:ring-4 focus:ring-purple-500/10 transition-all shadow-sm"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className={`w-full bg-purple-600 hover:bg-purple-700 text-white rounded-2xl py-4 font-medium tracking-wider shadow-[0_4px_14px_0_rgba(147,51,234,0.39)] hover:shadow-[0_6px_20px_rgba(147,51,234,0.23)] transition-all flex justify-center items-center ${isAnimating ? 'opacity-80 scale-95' : ''}`}
+          >
+            {isAnimating ? (
+              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              '验证登录'
+            )}
+          </button>
+        </form>
+      </div>
+
+      <div className="text-center text-xs text-slate-500 pb-4 relative z-10 font-medium">
+        <p>首次登录系统将强制要求修改密码及录入人脸</p>
+      </div>
+    </div>
+  );
+};
+
+// 2. Home/Dashboard Screen
+const HomeScreen = ({ onCheckInSuccess }) => {
+  const [time, setTime] = useState(new Date());
+  const [checkInState, setCheckInState] = useState('idle'); // idle, scanning, success
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleCheckIn = () => {
+    if (checkInState !== 'idle') return;
+
+    setCheckInState('scanning');
+
+    // Simulate face scan and network request
+    setTimeout(() => {
+      setCheckInState('success');
+      setTimeout(() => {
+        setCheckInState('idle');
+        onCheckInSuccess(time);
+      }, 2000);
+    }, 2500);
+  };
+
+  const formattedTime = time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const formattedDate = time.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+
+  return (
+    <div className="flex flex-col h-full bg-slate-50 text-slate-900 relative overflow-hidden">
+      {/* Map Background Area (Top Half) */}
+      <div className="absolute top-0 left-0 w-full h-[55%] bg-slate-200 z-0">
+        <div className="w-full h-full relative">
+          <iframe
+            width="100%"
+            height="100%"
+            frameBorder="0"
+            scrolling="no"
+            marginHeight="0"
+            marginWidth="0"
+            src="https://www.openstreetmap.org/export/embed.html?bbox=113.93%2C22.53%2C113.95%2C22.55&amp;layer=mapnik&amp;marker=22.54%2C113.94"
+            className="grayscale opacity-70"
+            title="打卡地图"
+          ></iframe>
+          {/* Overlay to blend map, prevent iframe interactions, and add theme color */}
+          <div className="absolute inset-0 bg-purple-600/5 mix-blend-multiply pointer-events-none"></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-transparent to-slate-50 pointer-events-none"></div>
+
+          {/* Decorative Location Pin on Map */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[80%] z-10 pointer-events-none flex flex-col items-center animate-bounce">
+            <div className="bg-purple-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg mb-1 relative">
+              打卡范围
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 border-4 border-transparent border-t-purple-600"></div>
+            </div>
+          </div>
+          {/* Map Range Circle */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-purple-500/10 border border-purple-500/30 rounded-full pointer-events-none"></div>
+        </div>
+      </div>
+
+      {/* Header (Floating over Map) */}
+      <div className="pt-12 px-6 pb-6 flex justify-between items-center relative z-10">
+        <div className="bg-white/80 backdrop-blur-md px-4 py-2 rounded-2xl shadow-sm border border-white/50">
+          <h2 className="text-xs font-bold text-purple-600 mb-0.5">早安，张宇航</h2>
+          <h1 className="text-xl font-bold tracking-tight text-slate-800">研发中心</h1>
+        </div>
+        <div className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-md border border-white/50 shadow-sm flex items-center justify-center relative hover:bg-white transition-colors cursor-pointer">
+          <Bell size={18} className="text-slate-700" />
+          <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></div>
+        </div>
+      </div>
+
+      {/* Bottom Sheet Area */}
+      <div className="absolute bottom-0 left-0 w-full h-[55%] bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_-10px_rgba(0,0,0,0.1)] z-20 flex flex-col items-center px-6 pt-16 pb-6 border-t border-slate-100">
+
+        {/* Check-in Button (Overlapping Map and Bottom Sheet) */}
+        <div className="absolute -top-20 left-1/2 -translate-x-1/2 flex items-center justify-center w-40 h-40">
+          {/* Ripple Effects */}
+          {checkInState === 'idle' && (
+            <>
+              <div className="absolute inset-0 rounded-full border-2 border-purple-200 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]"></div>
+              <div className="absolute inset-2 rounded-full border-2 border-purple-100 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_1s_infinite]"></div>
+            </>
+          )}
+
+          <button
+            onClick={handleCheckIn}
+            disabled={checkInState !== 'idle'}
+            className={`relative z-10 w-32 h-32 rounded-full flex flex-col items-center justify-center transition-all duration-500
+              ${checkInState === 'idle'
+                ? 'bg-white border-[6px] border-white shadow-[0_10px_30px_-10px_rgba(147,51,234,0.4)] hover:shadow-[0_15px_40px_-10px_rgba(147,51,234,0.5)] hover:scale-105'
+                : checkInState === 'success'
+                  ? 'bg-emerald-50 border-[6px] border-white shadow-[0_10px_30px_-10px_rgba(16,185,129,0.4)] scale-105'
+                  : 'bg-purple-50 border-[6px] border-white shadow-[0_10px_30px_-10px_rgba(147,51,234,0.5)] scale-105'
+              }`}
+          >
+            {checkInState === 'idle' && (
+              <>
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-1">
+                  <ScanFace size={24} className="text-purple-600" strokeWidth={2} />
+                </div>
+                <span className="text-sm font-bold tracking-wide text-slate-800">立即打卡</span>
+              </>
+            )}
+
+            {checkInState === 'scanning' && (
+              <>
+                <div className="absolute inset-2 rounded-full overflow-hidden">
+                  <div className="w-full h-1 bg-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.5)] animate-[scan_1.5s_ease-in-out_infinite]"></div>
+                </div>
+                <ScanFace size={28} className="text-purple-400 mb-2 animate-pulse" strokeWidth={1.5} />
+                <span className="text-xs font-bold tracking-widest text-purple-600 animate-pulse">检测中</span>
+              </>
+            )}
+
+            {checkInState === 'success' && (
+              <>
+                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-1">
+                  <CheckCircle2 size={28} className="text-emerald-500" strokeWidth={2.5} />
+                </div>
+                <span className="text-sm font-bold text-emerald-600 tracking-wide">已打卡</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Main Clock Area */}
+        <div className="text-center mb-6 mt-2">
+          <div className="text-5xl font-light tracking-tight mb-1 text-slate-800" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {formattedTime}
+          </div>
+          <div className="text-xs font-medium text-purple-600 bg-purple-50 px-3 py-1 rounded-full inline-block">{formattedDate}</div>
+        </div>
+
+        {/* Requirements Status Cards */}
+        <div className="w-full mt-auto grid grid-cols-3 gap-3">
+          <div className="bg-slate-50 border border-slate-100 shadow-sm rounded-2xl p-3 flex flex-col items-center justify-center relative overflow-hidden group hover:bg-emerald-50/50 hover:border-emerald-200 transition-all">
+            <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 group-hover:bg-emerald-100 transition-colors">
+              <MapPin size={16} className="text-emerald-600" />
+            </div>
+            <span className="text-[11px] font-medium text-slate-600 mb-1.5">定位围栏</span>
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">已在范围内</span>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-100 shadow-sm rounded-2xl p-3 flex flex-col items-center justify-center relative overflow-hidden group hover:bg-emerald-50/50 hover:border-emerald-200 transition-all">
+            <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 group-hover:bg-emerald-100 transition-colors">
+              <Clock size={16} className="text-emerald-600" />
+            </div>
+            <span className="text-[11px] font-medium text-slate-600 mb-1.5">时间窗口</span>
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">08:00-10:00</span>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-100 shadow-sm rounded-2xl p-3 flex flex-col items-center justify-center relative overflow-hidden group hover:bg-purple-50/50 hover:border-purple-200 transition-all">
+            <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 group-hover:bg-purple-100 transition-colors">
+              <ShieldCheck size={16} className="text-purple-600" />
+            </div>
+            <span className="text-[11px] font-medium text-slate-600 mb-1.5">人脸验证</span>
+            <span className="text-[10px] font-bold text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded-full">要求活体</span>
+          </div>
+        </div>
+      </div>
+
+      {/* CSS for custom animations */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes scan {
+          0% { transform: translateY(-40px); }
+          50% { transform: translateY(120px); }
+          100% { transform: translateY(-40px); }
+        }
+      `}} />
+    </div>
+  );
+};
+
+// 3. Records Screen
+const RecordsScreen = ({ records }) => {
+  return (
+    <div className="flex flex-col h-full bg-slate-50 text-slate-900">
+      <div className="pt-12 px-6 pb-6 border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-20">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-800">打卡记录</h1>
+        <p className="text-sm font-medium text-slate-500 mt-1">2026年3月</p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+        {records.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 text-slate-400">
+            <History size={48} className="mb-4 opacity-30" />
+            <p className="font-medium">暂无打卡记录</p>
+          </div>
+        ) : (
+          records.map((record, index) => (
+            <div key={index} className="flex relative">
+              {/* Timeline line */}
+              {index !== records.length - 1 && (
+                <div className="absolute top-10 left-[19px] bottom-[-24px] w-[2px] bg-slate-200"></div>
+              )}
+
+              {/* Timeline Dot */}
+              <div className="mr-4 mt-1 relative z-10">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-slate-50
+                  ${record.status === 'normal' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
+                  {record.status === 'normal' ? <CheckCircle2 size={18} strokeWidth={2.5} /> : <AlertCircle size={18} strokeWidth={2.5} />}
+                </div>
+              </div>
+
+              {/* Record Card */}
+              <div className="flex-1 bg-white border border-slate-200 shadow-sm rounded-2xl p-4 transition-all hover:shadow-md hover:border-purple-200 group">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <span className="text-lg font-bold text-slate-800">{record.time}</span>
+                    <span className="text-xs font-medium text-slate-500 ml-2">{record.date}</span>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border
+                    ${record.status === 'normal' ? 'border-emerald-200 text-emerald-700 bg-emerald-50' : 'border-orange-200 text-orange-700 bg-orange-50'}`}>
+                    {record.status === 'normal' ? '正常打卡' : '迟到异常'}
+                  </span>
+                </div>
+
+                <div className="space-y-2 mt-3 bg-slate-50 p-3 rounded-xl border border-slate-100 group-hover:bg-purple-50/50 transition-colors">
+                  <div className="flex items-center text-xs font-medium text-slate-600">
+                    <MapPin size={14} className="mr-1.5 text-slate-400" />
+                    <span>{record.location}</span>
+                  </div>
+                  <div className="flex items-center text-xs font-medium text-slate-600">
+                    <ScanFace size={14} className="mr-1.5 text-slate-400" />
+                    <span>人脸活体验证通过 ({record.device})</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+// 4. Profile Screen
+const ProfileScreen = ({ onLogout }) => {
+  return (
+    <div className="flex flex-col h-full bg-slate-50 text-slate-900 overflow-y-auto">
+      {/* Header Profile Area */}
+      <div className="pt-16 pb-8 px-6 bg-white border-b border-slate-200 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-purple-100/60 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="flex items-center space-x-5 relative z-10">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-violet-400 to-purple-600 p-1 shadow-md">
+            <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-white">
+              <User size={32} className="text-purple-300" />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold mb-1 text-slate-800">张宇航</h1>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-slate-500">EP-10024</span>
+              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">Active</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 space-y-6">
+        {/* Info Section */}
+        <div className="bg-white border border-slate-200 shadow-sm rounded-3xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
+            <span className="text-sm font-medium text-slate-500">所属部门</span>
+            <span className="text-sm font-bold text-slate-800">研发中心 - 移动架构组</span>
+          </div>
+          <div className="px-5 py-4 flex justify-between items-center">
+            <span className="text-sm font-medium text-slate-500">当前规则</span>
+            <span className="text-sm font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">标准验证 (GPS+人脸)</span>
+          </div>
+        </div>
+
+        {/* Action Menu */}
+        <div className="bg-white border border-slate-200 shadow-sm rounded-3xl overflow-hidden">
+          <button className="w-full px-5 py-4 border-b border-slate-100 flex items-center justify-between hover:bg-slate-50 transition-colors group">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors"><ShieldCheck size={18} /></div>
+              <span className="text-sm font-bold text-slate-800">修改密码</span>
+            </div>
+            <ChevronRight size={18} className="text-slate-400 group-hover:text-purple-500 transition-colors" />
+          </button>
+
+          <button className="w-full px-5 py-4 border-b border-slate-100 flex items-center justify-between hover:bg-slate-50 transition-colors group">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors"><ScanFace size={18} /></div>
+              <div className="text-left">
+                <div className="text-sm font-bold text-slate-800">重新录入人脸</div>
+                <div className="text-[10px] font-medium text-slate-500 mt-0.5">需管理员重置状态后可用</div>
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-slate-400 group-hover:text-purple-500 transition-colors" />
+          </button>
+
+          <button className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors group">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-slate-100 rounded-xl text-slate-600 group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors"><MapPin size={18} /></div>
+              <span className="text-sm font-bold text-slate-800">定位权限设置</span>
+            </div>
+            <ChevronRight size={18} className="text-slate-400 group-hover:text-purple-500 transition-colors" />
+          </button>
+        </div>
+
+        {/* Logout */}
+        <button
+          onClick={onLogout}
+          className="w-full bg-red-50 border border-red-100 text-red-600 rounded-2xl py-4 font-bold tracking-wider flex justify-center items-center hover:bg-red-100 transition-colors mt-6 shadow-sm"
+        >
+          <LogOut size={18} className="mr-2" />
+          退出登录
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// --- Main App Container ---
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [activeTab, setActiveTab] = useState('home'); // home, records, profile
+
+  // Mock Data
+  const [records, setRecords] = useState([
+    { date: '3月26日', time: '08:45', status: 'normal', location: '科技创新园 A栋', device: 'iPhone 15 Pro' },
+    { date: '3月26日', time: '18:30', status: 'normal', location: '科技创新园 A栋', device: 'iPhone 15 Pro' },
+    { date: '3月25日', time: '09:15', status: 'late', location: '科技创新园 A栋', device: 'iPhone 15 Pro' },
+    { date: '3月25日', time: '18:05', status: 'normal', location: '科技创新园 A栋', device: 'iPhone 15 Pro' },
+  ]);
+
+  const handleLogin = () => setIsLoggedIn(true);
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setActiveTab('home');
+  };
+
+  const handleCheckInSuccess = (timeObj) => {
+    const newRecord = {
+      date: `${timeObj.getMonth() + 1}月${timeObj.getDate()}日`,
+      time: timeObj.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      status: 'normal',
+      location: '科技创新园 A栋 (当前位置)',
+      device: '当前设备'
+    };
+    setRecords([newRecord, ...records]);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-200 flex items-center justify-center p-4 font-sans sm:bg-[url('https://images.unsplash.com/photo-1557682250-33bd709cbe85?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center">
+
+      {/* Mobile Device Mockup Container - Light Silver Theme */}
+      <div className="w-full max-w-[400px] h-[850px] bg-white rounded-[3rem] shadow-2xl overflow-hidden relative border-[8px] border-slate-100 flex flex-col sm:max-h-[85vh] ring-1 ring-slate-900/5">
+
+        {/* Phone Notch/Dynamic Island simulation */}
+        <div className="absolute top-0 inset-x-0 h-7 flex justify-center z-50">
+          <div className="w-32 h-6 bg-slate-900 rounded-b-2xl mt-[-2px] shadow-sm"></div>
+        </div>
+
+        {/* Screen Content */}
+        <div className="flex-1 overflow-hidden relative bg-slate-50">
+          {!isLoggedIn ? (
+            <LoginScreen onLogin={handleLogin} />
+          ) : (
+            <>
+              {activeTab === 'home' && <HomeScreen onCheckInSuccess={handleCheckInSuccess} />}
+              {activeTab === 'records' && <RecordsScreen records={records} />}
+              {activeTab === 'profile' && <ProfileScreen onLogout={handleLogout} />}
+            </>
+          )}
+        </div>
+
+        {/* Bottom Navigation Bar */}
+        {isLoggedIn && (
+          <div className="h-20 bg-white/90 backdrop-blur-xl border-t border-slate-200 flex items-center justify-around px-2 pb-2 z-40 relative shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
+            <button
+              onClick={() => setActiveTab('home')}
+              className={`flex flex-col items-center justify-center w-16 h-12 transition-all ${activeTab === 'home' ? 'text-purple-600 scale-110' : 'text-slate-400 hover:text-purple-400'}`}
+            >
+              <Home size={22} strokeWidth={activeTab === 'home' ? 2.5 : 2} className="mb-1" />
+              <span className="text-[10px] font-bold">打卡</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('records')}
+              className={`flex flex-col items-center justify-center w-16 h-12 transition-all ${activeTab === 'records' ? 'text-purple-600 scale-110' : 'text-slate-400 hover:text-purple-400'}`}
+            >
+              <History size={22} strokeWidth={activeTab === 'records' ? 2.5 : 2} className="mb-1" />
+              <span className="text-[10px] font-bold">记录</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`flex flex-col items-center justify-center w-16 h-12 transition-all ${activeTab === 'profile' ? 'text-purple-600 scale-110' : 'text-slate-400 hover:text-purple-400'}`}
+            >
+              <User size={22} strokeWidth={activeTab === 'profile' ? 2.5 : 2} className="mb-1" />
+              <span className="text-[10px] font-bold">我的</span>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

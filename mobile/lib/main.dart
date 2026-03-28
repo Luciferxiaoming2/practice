@@ -16,7 +16,6 @@ void main() async {
   AMapFlutterLocation.setApiKey(AppConfig.amapAndroidKey, AppConfig.amapIosKey);
 
   final auth = AuthProvider();
-  await auth.init();
 
   runApp(
     MultiProvider(
@@ -29,13 +28,62 @@ void main() async {
   );
 }
 
-class App extends StatelessWidget {
+class App extends StatefulWidget {
   const App({super.key});
+  @override
+  State<App> createState() => _AppState();
+}
+
+class _AppState extends State<App> {
+  bool _ready = false;
+
+  bool _initStarted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initStarted) {
+      _initStarted = true;
+      _init();
+    }
+  }
+
+  Future<void> _init() async {
+    await context.read<AuthProvider>().init();
+    if (mounted) setState(() => _ready = true);
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final router = buildRouter(auth);
+
+    if (!_ready) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: lightTheme,
+        home: const Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'ENDPAGE',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF7C3AED),
+                    letterSpacing: 4,
+                  ),
+                ),
+                SizedBox(height: 16),
+                CircularProgressIndicator(color: Color(0xFF7C3AED)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return MaterialApp.router(
       title: '熵析云枢',

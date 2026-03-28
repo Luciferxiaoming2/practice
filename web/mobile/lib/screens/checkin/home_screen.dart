@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -6,7 +7,6 @@ import 'package:camera/camera.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/checkin_provider.dart';
 import '../../services/location_service.dart';
-import '../../services/face_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,6 +29,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _initLocation();
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
+    });
+    // Load today's records so we can show today's checkin status
+    Future.microtask(() {
+      final today = DateTime.now();
+      final fmt = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      context.read<CheckinProvider>().loadHistory(dateFrom: fmt, dateTo: fmt);
     });
   }
 
@@ -54,6 +60,15 @@ class _HomeScreenState extends State<HomeScreen> {
     };
     _locationService.startListening();
     debugPrint('[HomeScreen] Location listening started');
+
+    // 10秒后如果还没定位到，重新启动定位
+    Future.delayed(const Duration(seconds: 10), () {
+      if (mounted && !_locationReady) {
+        debugPrint('[HomeScreen] No location after 10s, restarting...');
+        _locationService.stopListening();
+        _locationService.startListening();
+      }
+    });
   }
 
   @override
@@ -111,139 +126,139 @@ class _HomeScreenState extends State<HomeScreen> {
     final topPadding = MediaQuery.of(context).padding.top;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    final screenH = MediaQuery.of(context).size.height;
-    final mapH = screenH * 0.45;
-    final sheetTop = screenH * 0.45;
-
     return Scaffold(
       extendBodyBehindAppBar: true,
-      body: Stack(
+      body: Column(
         children: [
-          // ── 1. Map background (top 45%) ──
-          Positioned(
-            top: 0, left: 0, right: 0, height: mapH + 40, // +40 留出被 sheet 遮住的过渡区
-            child: Container(
-              color: const Color(0xFFE2E8F0),
-              child: Stack(
-                children: [
-                  if (_locationReady && _lat != null && _lng != null)
-                    Positioned.fill(
-                      child: Image.network(
-                        'https://restapi.amap.com/v3/staticmap'
-                        '?location=${_lng!.toStringAsFixed(6)},${_lat!.toStringAsFixed(6)}'
-                        '&zoom=15&size=750*500&scale=2'
-                        '&markers=mid,0x7C3AED,A:${_lng!.toStringAsFixed(6)},${_lat!.toStringAsFixed(6)}'
-                        '&key=66947be73f9b49d62c7db4de4f8de9f2',
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => CustomPaint(painter: _MapGridPainter()),
-                      ),
-                    )
-                  else
-                    Positioned.fill(child: CustomPaint(painter: _MapGridPainter())),
-                  // Purple tint
-                  Positioned.fill(
-                    child: Container(color: const Color(0xFF7C3AED).withValues(alpha: 0.05)),
-                  ),
-                  // Top gradient
-                  Positioned(
-                    left: 0, right: 0, top: 0, height: 60,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                          colors: [Colors.white.withValues(alpha: 0.6), Colors.transparent],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Bottom gradient (fades into white sheet)
-                  Positioned(
-                    left: 0, right: 0, bottom: 0, height: 80,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.white.withValues(alpha: 0.9)],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Range circle
-                  Center(
-                    child: Container(
-                      width: 160, height: 160,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFF7C3AED).withValues(alpha: 0.08),
-                        border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.25)),
-                      ),
-                    ),
-                  ),
-                  // "打卡范围" badge
-                  Positioned(
-                    top: topPadding + 80, left: 0, right: 0,
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C3AED),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [BoxShadow(color: const Color(0xFF7C3AED).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))],
-                        ),
-                        child: const Text('打卡范围', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // ── 2. Floating header ──
-          Positioned(
-            top: topPadding + 8, left: 16, right: 16,
-            child: Row(
+          // ── Top area (map-like + header) ──
+          Expanded(
+            flex: 4,
+            child: Stack(
               children: [
-                Flexible(
+                // Map background
+                Positioned.fill(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
+                    color: const Color(0xFFE2E8F0),
+                    child: Stack(
                       children: [
-                        Text(
-                          '$greeting，${user?.fullName ?? ''}',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF7C3AED)),
+                        // 真实地图（高德静态地图 API）
+                        if (_locationReady && _lat != null && _lng != null)
+                          Positioned.fill(
+                            child: Image.network(
+                              'https://restapi.amap.com/v3/staticmap'
+                              '?location=${_lng!.toStringAsFixed(6)},${_lat!.toStringAsFixed(6)}'
+                              '&zoom=15&size=750*500&scale=2'
+                              '&markers=mid,0x7C3AED,A:${_lng!.toStringAsFixed(6)},${_lat!.toStringAsFixed(6)}'
+                              '&key=66947be73f9b49d62c7db4de4f8de9f2',
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => CustomPaint(painter: _MapGridPainter()),
+                            ),
+                          )
+                        else
+                          Positioned.fill(child: CustomPaint(painter: _MapGridPainter())),
+                        Positioned.fill(
+                          child: Container(color: const Color(0xFF7C3AED).withOpacity(0.03)),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _address ?? '定位中...',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                        // Gradient fade at bottom
+                        Positioned(
+                          left: 0, right: 0, bottom: 0, height: 80,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.transparent, Colors.white.withOpacity(0.8)],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Gradient fade at top
+                        Positioned(
+                          left: 0, right: 0, top: 0, height: 60,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.white.withOpacity(0.6), Colors.transparent],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Range circle
+                        Center(
+                          child: Container(
+                            width: 160, height: 160,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF7C3AED).withOpacity(0.08),
+                              border: Border.all(color: const Color(0xFF7C3AED).withOpacity(0.2)),
+                            ),
+                          ),
+                        ),
+                        // Range label
+                        Positioned(
+                          top: topPadding + 80,
+                          left: 0, right: 0,
+                          child: Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF7C3AED),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(color: const Color(0xFF7C3AED).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2)),
+                                ],
+                              ),
+                              child: const Text('打卡范围', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.9),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
-                  ),
-                  child: Stack(
+                // Floating header
+                Positioned(
+                  top: topPadding + 8,
+                  left: 16, right: 16,
+                  child: Row(
                     children: [
-                      const Center(child: Icon(Icons.notifications_outlined, size: 20, color: Color(0xFF334155))),
-                      Positioned(
-                        top: 10, right: 10,
-                        child: Container(width: 7, height: 7, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.red)),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '$greeting，${user?.fullName ?? ''}',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF7C3AED)),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _address ?? '定位中...',
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.9),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                        ),
+                        child: const Icon(Icons.notifications_outlined, size: 20, color: Color(0xFF334155)),
                       ),
                     ],
                   ),
@@ -252,26 +267,39 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // ── 3. Bottom sheet (white, rounded top) ──
-          Positioned(
-            left: 0, right: 0, bottom: 0,
-            top: sheetTop,
+          // ── Bottom content area ──
+          Expanded(
+            flex: 6,
             child: Container(
+              width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 24, offset: const Offset(0, -8))],
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 20, offset: const Offset(0, -6)),
+                ],
               ),
               child: SingleChildScrollView(
-                padding: EdgeInsets.only(left: 24, right: 24, top: 80, bottom: bottomPadding + 12),
+                padding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: bottomPadding + 12),
                 child: Column(
                   children: [
+                    // Check-in button
+                    _CheckInButton(
+                      state: checkin.checkinLoading
+                          ? _CheckInState.scanning
+                          : (checkin.checkinSuccess && checkin.checkinResult != null)
+                              ? _CheckInState.success
+                              : _CheckInState.idle,
+                      onTap: _doCheckin,
+                    ),
+                    const SizedBox(height: 16),
+
                     // Clock
                     Text(
                       '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}:${_now.second.toString().padLeft(2, '0')}',
                       style: const TextStyle(
-                        fontSize: 44,
-                        fontWeight: FontWeight.w200,
+                        fontSize: 40,
+                        fontWeight: FontWeight.w300,
                         color: Color(0xFF1E293B),
                         letterSpacing: -1,
                         fontFeatures: [FontFeature.tabularFigures()],
@@ -297,9 +325,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
-                          color: (checkin.checkinSuccess ? const Color(0xFF10B981) : Colors.red).withValues(alpha: 0.08),
+                          color: (checkin.checkinSuccess ? const Color(0xFF10B981) : Colors.red).withOpacity(0.08),
                           border: Border.all(
-                            color: (checkin.checkinSuccess ? const Color(0xFF10B981) : Colors.red).withValues(alpha: 0.2),
+                            color: (checkin.checkinSuccess ? const Color(0xFF10B981) : Colors.red).withOpacity(0.2),
                           ),
                         ),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -349,24 +377,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     // Status cards
                     if (user != null) _StatusCards(user: user, locationReady: _locationReady),
+
+                    const SizedBox(height: 16),
+
+                    // Today's checkin status & history link
+                    _TodayStatusBar(records: checkin.records, now: _now),
                   ],
                 ),
-              ),
-            ),
-          ),
-
-          // ── 4. Check-in button (overlapping map and sheet junction) ──
-          Positioned(
-            top: sheetTop - 70,
-            left: 0, right: 0,
-            child: Center(
-              child: _CheckInButton(
-                state: checkin.checkinLoading
-                    ? _CheckInState.scanning
-                    : (checkin.checkinSuccess && checkin.checkinResult != null)
-                        ? _CheckInState.success
-                        : _CheckInState.idle,
-                onTap: _doCheckin,
               ),
             ),
           ),
@@ -674,33 +691,12 @@ class _FaceVerificationSheetState extends State<_FaceVerificationSheet> {
 
   Future<void> _captureAndVerify() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
-    setState(() { _verifying = true; _error = null; });
-    final xFile = await _controller!.takePicture();
-
-    try {
-      final (matched, similarity) = await FaceService.verifyFace(xFile.path);
-      if (matched) {
-        setState(() => _captured = true);
-        await Future.delayed(const Duration(milliseconds: 600));
-        if (mounted) Navigator.pop(context, true);
-      } else {
-        setState(() {
-          _verifying = false;
-          _error = '人脸不匹配 (${(similarity * 100).toStringAsFixed(0)}%)，请重试';
-        });
-      }
-    } catch (e) {
-      String msg = '验证失败，请重试';
-      if (e.toString().contains('未检测到人脸')) {
-        msg = '未检测到人脸，请正对摄像头';
-      } else if (e.toString().contains('尚未录入')) {
-        msg = '请先录入人脸';
-      }
-      setState(() { _verifying = false; _error = msg; });
-    }
+    setState(() => _verifying = true);
+    await _controller!.takePicture();
+    setState(() => _captured = true);
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (mounted) Navigator.pop(context, true);
   }
-
-  String? _error;
 
   @override
   void dispose() {
@@ -815,13 +811,7 @@ class _FaceVerificationSheetState extends State<_FaceVerificationSheet> {
             ),
           ),
           const SizedBox(height: 14),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(_error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 13, fontWeight: FontWeight.w500), textAlign: TextAlign.center),
-            )
-          else
-            Text('请将面部置于框内，点击按钮验证', style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13)),
+          Text('请将面部置于框内，点击按钮验证', style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 13)),
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -843,6 +833,82 @@ class _FaceVerificationSheetState extends State<_FaceVerificationSheet> {
             ),
           ),
           SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Today status bar + history link ──
+class _TodayStatusBar extends StatelessWidget {
+  final List<dynamic> records;
+  final DateTime now;
+  const _TodayStatusBar({required this.records, required this.now});
+
+  @override
+  Widget build(BuildContext context) {
+    final todayRecords = records.where((r) {
+      final t = r.timestamp as DateTime;
+      return t.year == now.year && t.month == now.month && t.day == now.day;
+    }).toList();
+    final hasCheckedIn = todayRecords.isNotEmpty;
+    final allSuccess = hasCheckedIn && todayRecords.every((r) => r.isSuccess);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: hasCheckedIn
+            ? (allSuccess ? const Color(0xFFF0FDF4) : const Color(0xFFFFF7ED))
+            : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: hasCheckedIn
+              ? (allSuccess ? const Color(0xFFBBF7D0) : const Color(0xFFFED7AA))
+              : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            hasCheckedIn
+                ? (allSuccess ? Icons.check_circle : Icons.warning_amber_rounded)
+                : Icons.access_time,
+            size: 18,
+            color: hasCheckedIn
+                ? (allSuccess ? const Color(0xFF059669) : const Color(0xFFF97316))
+                : const Color(0xFF94A3B8),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              hasCheckedIn
+                  ? (allSuccess
+                      ? '今日已打卡 ${todayRecords.length} 次，全部正常'
+                      : '今日已打卡 ${todayRecords.length} 次，存在异常')
+                  : '今日尚未打卡',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: hasCheckedIn
+                    ? (allSuccess ? const Color(0xFF065F46) : const Color(0xFF9A3412))
+                    : const Color(0xFF64748B),
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => context.go('/history'),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '查看记录',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF7C3AED)),
+                ),
+                const SizedBox(width: 2),
+                const Icon(Icons.arrow_forward_ios, size: 10, color: Color(0xFF7C3AED)),
+              ],
+            ),
+          ),
         ],
       ),
     );

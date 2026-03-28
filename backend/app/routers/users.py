@@ -23,8 +23,11 @@ def _sync_is_admin(user: User, db: Session):
 
 
 @router.get("/", response_model=list[UserOut])
-def list_users(db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return db.query(User).all()
+def list_users(db: Session = Depends(get_db), payload: dict = Depends(get_current_user)):
+    if payload.get("is_admin"):
+        return db.query(User).all()
+    caller_id = int(payload["sub"])
+    return db.query(User).filter(User.id == caller_id).all()
 
 
 @router.post("/", response_model=UserOut)
@@ -56,7 +59,10 @@ def create_user(body: UserCreate, db: Session = Depends(get_db), _=Depends(requi
 
 
 @router.get("/{user_id}", response_model=UserOut)
-def get_user(user_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)):
+def get_user(user_id: int, db: Session = Depends(get_db), payload: dict = Depends(get_current_user)):
+    caller_id = int(payload["sub"])
+    if not payload.get("is_admin") and caller_id != user_id:
+        raise HTTPException(status_code=403, detail="无权查看他人信息")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")

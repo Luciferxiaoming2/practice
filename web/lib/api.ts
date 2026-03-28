@@ -170,3 +170,11 @@ export async function getCheckins(params?: {
   const { data } = await api.get<CheckIn[]>("/checkins/", { params })
   return data
 }
+
+export async function deleteCheckin(id: number) {
+  await api.delete(`/checkins/${id}`)
+}
+
+export async function batchDeleteCheckins(ids: number[]) {
+  await api.post("/checkins/batch-delete", { ids })
+}

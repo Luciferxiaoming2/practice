@@ -1,6 +1,13 @@
 "use client"
 import { useEffect, useRef, useState, useCallback } from "react"
-import AMapLoader from "@amap/amap-jsapi-loader"
+
+// 安全密钥必须在 JSAPI 脚本加载前设置，放在模块顶层确保最早执行
+if (typeof window !== "undefined") {
+  ;(window as any)._AMapSecurityConfig = {
+    securityJsCode: process.env.NEXT_PUBLIC_AMAP_SECRET || "",
+  }
+}
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -92,10 +99,10 @@ export default function AMapCheckin({ target, requireLocation, onCheckin, alread
           map.setZoom(16)
         }
 
-        if (target) {
+        if (target && isFinite(target.lat) && isFinite(target.lng)) {
           const d = calcDistance(lat, lng, target.lat, target.lng)
           setDistance(Math.round(d))
-          setInRange(d <= target.radius)
+          setInRange(d <= (target.radius || 200))
         } else {
           setInRange(true)
         }
@@ -123,64 +130,78 @@ export default function AMapCheckin({ target, requireLocation, onCheckin, alread
     )
   }, [target, calcDistance])
 
-  // 初始化地图
+  // 初始化地图 — 与 LocationPicker 完全一致的加载方式
   useEffect(() => {
     destroyedRef.current = false
+    const mapEl = mapRef.current
+    if (!mapEl) return
 
-    AMapLoader.load({
-      key: process.env.NEXT_PUBLIC_AMAP_KEY || "",
-      version: "2.0",
-      plugins: ["AMap.Geolocation"],
-    })
-      .then((AMap: any) => {
-        if (destroyedRef.current || !mapRef.current) return
-
-        amapRef.current = AMap
-
-        const center = target ? [target.lng, target.lat] : [116.397428, 39.90923]
-        const map = new AMap.Map(mapRef.current, {
-          zoom: 16,
-          center,
-          viewMode: "3D",
-          resizeEnable: true,
+    async function init() {
+      // 如果 AMap 已经加载过，直接复用，避免 loader 重入问题
+      let AMap = (window as any).AMap
+      if (!AMap) {
+        const AMapLoader = (await import("@amap/amap-jsapi-loader")).default
+        AMap = await AMapLoader.load({
+          key: process.env.NEXT_PUBLIC_AMAP_KEY || "",
+          version: "2.0",
+          plugins: ["AMap.Geolocation"],
         })
-        mapInstance.current = map
+      }
 
-        if (target) {
-          new AMap.Circle({
-            center: [target.lng, target.lat],
-            radius: target.radius,
-            strokeColor: "#1677ff",
-            strokeWeight: 2,
-            strokeOpacity: 0.6,
-            fillColor: "#1677ff",
-            fillOpacity: 0.12,
-            map,
-          })
+      if (destroyedRef.current) return
+      amapRef.current = AMap
 
-          new AMap.Marker({
-            position: [target.lng, target.lat],
-            map,
-            label: {
-              content: "<span style='font-size:12px;color:#1677ff;font-weight:600'>打卡点</span>",
-              direction: "top",
-            },
-          })
-        }
+      const hasValidTarget = target && isFinite(target.lat) && isFinite(target.lng)
+      const center = hasValidTarget ? [target.lng, target.lat] : [116.397428, 39.90923]
+      const map = new AMap.Map(mapEl, {
+        zoom: 16,
+        center,
+        resizeEnable: true,
+      })
+      mapInstance.current = map
 
+      if (hasValidTarget && target) {
+        new AMap.Circle({
+          center: [target.lng, target.lat],
+          radius: target.radius || 200,
+          strokeColor: "#1677ff",
+          strokeWeight: 2,
+          strokeOpacity: 0.6,
+          fillColor: "#1677ff",
+          fillOpacity: 0.12,
+          map,
+        })
+
+        new AMap.Marker({
+          position: [target.lng, target.lat],
+          map,
+          label: {
+            content: "<span style='font-size:12px;color:#1677ff;font-weight:600'>打卡点</span>",
+            direction: "top",
+          },
+        })
+      }
+
+      setLoading(false)
+      locateUser()
+    }
+
+    init().catch(() => {
+      if (!destroyedRef.current) {
+        setError("地图加载失败，请检查网络或 API Key 配置")
         setLoading(false)
-        locateUser()
-      })
-      .catch(() => {
-        if (!destroyedRef.current) {
-          setError("地图加载失败，请检查网络或 API Key 配置")
-          setLoading(false)
-        }
-      })
+      }
+    })
 
     return () => {
       destroyedRef.current = true
-      mapInstance.current?.destroy()
+      if (mapInstance.current) {
+        mapInstance.current.destroy()
+        mapInstance.current = null
+      }
+      if (mapEl) {
+        mapEl.innerHTML = ""
+      }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -210,7 +231,8 @@ export default function AMapCheckin({ target, requireLocation, onCheckin, alread
     <div className="space-y-4">
       <motion.div variants={fadeInUp} initial="hidden" animate="visible">
         <Card className="overflow-hidden">
-          <div ref={mapRef} className="w-full h-[350px] relative">
+          <div className="w-full h-[350px] relative">
+            <div ref={mapRef} className="absolute inset-0" />
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
                 <Loader2 className="animate-spin text-muted-foreground" size={24} />

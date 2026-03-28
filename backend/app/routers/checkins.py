@@ -1,5 +1,5 @@
 import math
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date, datetime, time
@@ -99,12 +99,58 @@ def list_checkins(
     elif user_id is not None:
         q = q.filter(CheckIn.user_id == user_id)
 
-    if date_from:
-        d = date.fromisoformat(date_from)
-        q = q.filter(CheckIn.timestamp >= datetime.combine(d, time.min))
+    try:
+        if date_from:
+            d = date.fromisoformat(date_from)
+            q = q.filter(CheckIn.timestamp >= datetime.combine(d, time.min))
 
-    if date_to:
-        d = date.fromisoformat(date_to)
-        q = q.filter(CheckIn.timestamp <= datetime.combine(d, time.max))
+        if date_to:
+            d = date.fromisoformat(date_to)
+            q = q.filter(CheckIn.timestamp <= datetime.combine(d, time.max))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="日期格式错误，请使用 YYYY-MM-DD")
 
-    return q.order_by(CheckIn.timestamp.desc()).all()
+    records = q.order_by(CheckIn.timestamp.desc()).all()
+
+    # 查询用户姓名并附加到结果
+    user_ids = {r.user_id for r in records}
+    name_map = {u.id: u.full_name for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
+
+    return [
+        CheckInOut(
+            id=r.id,
+            user_id=r.user_id,
+            user_name=name_map.get(r.user_id, ""),
+            timestamp=r.timestamp,
+            lat=r.lat,
+            lng=r.lng,
+            status=r.status,
+        )
+        for r in records
+    ]
+
+
+@router.delete("/{checkin_id}", status_code=204)
+def delete_checkin(
+    checkin_id: int,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(require_admin),
+):
+    record = db.query(CheckIn).filter(CheckIn.id == checkin_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="打卡记录不存在")
+    db.delete(record)
+    db.commit()
+
+
+@router.post("/batch-delete", status_code=204)
+def batch_delete_checkins(
+    ids: list[int] = Body(..., embed=True),
+    db: Session = Depends(get_db),
+    payload: dict = Depends(require_admin),
+):
+    """批量删除打卡记录（管理员）"""
+    count = db.query(CheckIn).filter(CheckIn.id.in_(ids)).delete(synchronize_session=False)
+    db.commit()
+    if count == 0:
+        raise HTTPException(status_code=404, detail="未找到匹配的记录")

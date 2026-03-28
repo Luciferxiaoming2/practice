@@ -20,7 +20,7 @@ export default function CheckinPage() {
     if (!userId) return
     Promise.all([
       getUser(userId),
-      getCheckins(),
+      getCheckins({ user_id: userId }),
     ]).then(([u, records]) => {
       setUser(u)
       // 检查今日是否已打卡

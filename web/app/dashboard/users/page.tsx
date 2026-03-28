@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Search, Loader2, Pencil, Trash2, RotateCcw, ScanFace, Plus, Settings } from "lucide-react"
+import { Search, Loader2, Pencil, Trash2, RotateCcw, ScanFace, Plus, Settings, X, MapPin, Clock, ScanLine, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
@@ -267,29 +267,27 @@ function CreateModal({ roles, onClose, onCreated }: { roles: Role[]; onClose: ()
   return (
     <Modal title="新建用户" onClose={onClose}>
       <form className="space-y-4" onSubmit={handleSubmit}>
-        <Field label="账号">
-          <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="英文、数字、下划线" required />
-        </Field>
-        <Field label="姓名">
-          <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="用户真实姓名" required />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="账号">
+            <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="英文/数字/下划线" required />
+          </Field>
+          <Field label="姓名">
+            <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="真实姓名" required />
+          </Field>
+        </div>
         <Field label="密码">
           <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="初始密码" required />
         </Field>
         <Field label="角色">
-          <select
-            className="w-full h-9 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            value={form.role_id ?? ""}
-            onChange={(e) => setForm({ ...form, role_id: e.target.value ? Number(e.target.value) : null })}
-          >
-            <option value="">未分配角色</option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
+          <SelectField
+            value={form.role_id}
+            onChange={(v) => setForm({ ...form, role_id: v ? Number(v) : null })}
+            options={roles.map((r) => ({ value: r.id, label: r.name }))}
+            placeholder="未分配角色"
+          />
         </Field>
         {errMsg && <p className="text-destructive text-xs">{errMsg}</p>}
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 pt-3 border-t border-border">
           <Button type="button" variant="outline" onClick={onClose}>取消</Button>
           <Button type="submit" isLoading={saving}>创建</Button>
         </div>
@@ -332,23 +330,16 @@ function EditModal({ user, roles, onClose, onSaved }: { user: User; roles: Role[
           <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
         </Field>
         <Field label="角色">
-          <select
-            className="w-full h-9 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            value={form.role_id ?? ""}
-            onChange={(e) => setForm({ ...form, role_id: e.target.value ? Number(e.target.value) : null })}
-          >
-            <option value="">未分配角色</option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
+          <SelectField
+            value={form.role_id}
+            onChange={(v) => setForm({ ...form, role_id: v ? Number(v) : null })}
+            options={roles.map((r) => ({ value: r.id, label: r.name }))}
+            placeholder="未分配角色"
+          />
         </Field>
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="rounded" />
-          已激活
-        </label>
+        <Toggle checked={form.is_active} label="账户已激活" onChange={(v) => setForm({ ...form, is_active: v })} />
         {errMsg && <p className="text-destructive text-xs">{errMsg}</p>}
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 pt-3 border-t border-border">
           <Button type="button" variant="outline" onClick={onClose}>取消</Button>
           <Button type="submit" isLoading={saving}>保存</Button>
         </div>
@@ -394,68 +385,64 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
 
   return (
     <Modal title={`打卡规则 — ${user.full_name}`} onClose={onClose} wide>
-      <form className="space-y-4" onSubmit={handleSave}>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input type="checkbox" checked={rules.require_location}
-              onChange={(e) => setRules({ ...rules, require_location: e.target.checked })}
-              className="rounded" />
-            要求地点打卡
-          </label>
+      <form className="space-y-3" onSubmit={handleSave}>
+        {/* 地点打卡 */}
+        <div className="space-y-3">
+          <Toggle checked={rules.require_location} icon={<MapPin size={16} />} label="要求地点打卡"
+            onChange={(v) => setRules({ ...rules, require_location: v })} />
           {rules.require_location && (
-            <div className="space-y-2 pl-6">
-              <LocationPicker
-                lat={rules.location_lat}
-                lng={rules.location_lng}
-                radius={rules.location_radius}
-                onChange={(lat, lng) => setRules({ ...rules, location_lat: String(lat), location_lng: String(lng) })}
-              />
-              <div className="grid grid-cols-3 gap-2">
-                <Field label="纬度">
-                  <Input type="number" step="any" placeholder="30.2741" value={rules.location_lat}
-                    onChange={(e) => setRules({ ...rules, location_lat: e.target.value })} />
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-3 pl-2 border-l-2 border-primary/20 ml-2">
+              <div className="pl-3">
+                <LocationPicker
+                  lat={rules.location_lat} lng={rules.location_lng} radius={rules.location_radius}
+                  onChange={(lat, lng) => setRules({ ...rules, location_lat: String(lat), location_lng: String(lng) })}
+                />
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  <Field label="纬度">
+                    <Input type="number" step="any" placeholder="30.2741" value={rules.location_lat}
+                      onChange={(e) => setRules({ ...rules, location_lat: e.target.value })} />
+                  </Field>
+                  <Field label="经度">
+                    <Input type="number" step="any" placeholder="120.1551" value={rules.location_lng}
+                      onChange={(e) => setRules({ ...rules, location_lng: e.target.value })} />
+                  </Field>
+                  <Field label="半径(米)">
+                    <Input type="number" step="any" placeholder="200" value={rules.location_radius}
+                      onChange={(e) => setRules({ ...rules, location_radius: e.target.value })} />
+                  </Field>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </div>
+
+        {/* 时间段打卡 */}
+        <div className="space-y-3">
+          <Toggle checked={rules.require_time} icon={<Clock size={16} />} label="要求时间段打卡"
+            onChange={(v) => setRules({ ...rules, require_time: v })} />
+          {rules.require_time && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="pl-2 border-l-2 border-primary/20 ml-2">
+              <div className="grid grid-cols-2 gap-2 pl-3">
+                <Field label="开始时间">
+                  <Input type="time" value={rules.checkin_time_start}
+                    onChange={(e) => setRules({ ...rules, checkin_time_start: e.target.value })} />
                 </Field>
-                <Field label="经度">
-                  <Input type="number" step="any" placeholder="120.1551" value={rules.location_lng}
-                    onChange={(e) => setRules({ ...rules, location_lng: e.target.value })} />
-                </Field>
-                <Field label="半径(米)">
-                  <Input type="number" step="any" placeholder="200" value={rules.location_radius}
-                    onChange={(e) => setRules({ ...rules, location_radius: e.target.value })} />
+                <Field label="结束时间">
+                  <Input type="time" value={rules.checkin_time_end}
+                    onChange={(e) => setRules({ ...rules, checkin_time_end: e.target.value })} />
                 </Field>
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input type="checkbox" checked={rules.require_time}
-              onChange={(e) => setRules({ ...rules, require_time: e.target.checked })}
-              className="rounded" />
-            要求时间段打卡
-          </label>
-          {rules.require_time && (
-            <div className="grid grid-cols-2 gap-2 pl-6">
-              <Field label="开始时间">
-                <Input type="time" value={rules.checkin_time_start}
-                  onChange={(e) => setRules({ ...rules, checkin_time_start: e.target.value })} />
-              </Field>
-              <Field label="结束时间">
-                <Input type="time" value={rules.checkin_time_end}
-                  onChange={(e) => setRules({ ...rules, checkin_time_end: e.target.value })} />
-              </Field>
-            </div>
-          )}
-        </div>
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input type="checkbox" checked={rules.require_face}
-            onChange={(e) => setRules({ ...rules, require_face: e.target.checked })}
-            className="rounded" />
-          要求人脸识别
-        </label>
-        <div className="flex justify-end gap-2 pt-2">
+
+        {/* 人脸识别 */}
+        <Toggle checked={rules.require_face} icon={<ScanLine size={16} />} label="要求人脸识别"
+          onChange={(v) => setRules({ ...rules, require_face: v })} />
+
+        <div className="flex justify-end gap-2 pt-3 border-t border-border mt-4">
           <Button type="button" variant="outline" onClick={onClose}>取消</Button>
-          <Button type="submit" isLoading={saving}>保存</Button>
+          <Button type="submit" isLoading={saving}>保存规则</Button>
         </div>
       </form>
     </Modal>
@@ -465,17 +452,24 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
 /* ── 通用组件 ─────────────────────────────────────────── */
 function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 35 }}
-        className={`bg-card rounded-2xl shadow-xl w-full ${wide ? "max-w-lg" : "max-w-sm"} mx-4 p-6 max-h-[90vh] overflow-y-auto`}
+        className={`bg-card rounded-2xl shadow-xl w-full ${wide ? "max-w-lg" : "max-w-sm"} mx-4 max-h-[90vh] overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
         style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.6)" }}
       >
-        <h2 className="text-base font-semibold mb-4">{title}</h2>
-        {children}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border">
+          <h2 className="text-base font-semibold">{title}</h2>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="px-6 py-5">
+          {children}
+        </div>
       </motion.div>
     </div>
   )
@@ -484,9 +478,48 @@ function Modal({ title, onClose, children, wide }: { title: string; onClose: () 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium">{label}</label>
+      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</label>
       {children}
-      {error && <p className="text-destructive text-xs">{error}</p>}
+      {error && <p className="text-destructive text-xs mt-1">{error}</p>}
+    </div>
+  )
+}
+
+function Toggle({ checked, onChange, label, icon }: { checked: boolean; onChange: (v: boolean) => void; label: string; icon?: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl border transition-all ${
+        checked ? "border-primary/30 bg-primary/5" : "border-border bg-background hover:bg-muted/40"
+      }`}
+    >
+      {icon && <span className={`${checked ? "text-primary" : "text-muted-foreground"} transition-colors`}>{icon}</span>}
+      <span className="text-sm font-medium flex-1 text-left">{label}</span>
+      <div className={`w-9 h-5 rounded-full transition-colors relative ${checked ? "bg-primary" : "bg-muted-foreground/30"}`}>
+        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-4" : "translate-x-0.5"}`} />
+      </div>
+    </button>
+  )
+}
+
+function SelectField({ value, onChange, options, placeholder }: {
+  value: string | number | null; onChange: (v: string) => void;
+  options: { value: string | number; label: string }[]; placeholder?: string
+}) {
+  return (
+    <div className="relative">
+      <select
+        className="w-full h-9 rounded-xl border border-border bg-background px-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none"
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {placeholder && <option value="">{placeholder}</option>}
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
     </div>
   )
 }

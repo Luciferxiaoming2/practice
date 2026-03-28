@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion"
 import { getCheckins, type CheckIn } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 
 export default function UserCheckinsPage() {
+  const { userId } = useAuth()
   const [records, setRecords] = useState<CheckIn[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -17,9 +19,10 @@ export default function UserCheckinsPage() {
   const [dateTo, setDateTo] = useState("")
 
   async function load() {
+    if (!userId) return
     setLoading(true)
     try {
-      const params: Record<string, string> = {}
+      const params: { user_id: number; date_from?: string; date_to?: string } = { user_id: userId }
       if (dateFrom) params.date_from = dateFrom
       if (dateTo) params.date_to = dateTo
       setRecords(await getCheckins(params))
@@ -28,7 +31,7 @@ export default function UserCheckinsPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [userId])
 
   function fmtTime(ts: string) {
     const d = new Date(ts)

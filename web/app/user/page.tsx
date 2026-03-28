@@ -17,7 +17,7 @@ export default function UserHomePage() {
   useEffect(() => {
     if (!userId) return
     getUser(userId).then(setUser).catch(() => {})
-    getCheckins().then(setRecords).catch(() => {})
+    getCheckins({ user_id: userId }).then(setRecords).catch(() => {})
   }, [userId])
 
   const total = records.length

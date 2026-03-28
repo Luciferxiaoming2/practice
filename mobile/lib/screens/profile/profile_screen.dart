@@ -12,6 +12,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final _nameCtrl = TextEditingController();
   final _pwdCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   bool _loading = false;
@@ -193,6 +194,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _SectionCard(
                       children: [
                         _ActionRow(
+                          icon: Icons.edit_outlined,
+                          label: '修改姓名',
+                          subtitle: user?.fullName ?? '',
+                          onTap: () => _showNameSheet(context),
+                        ),
+                        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                        _ActionRow(
                           icon: Icons.shield_outlined,
                           label: '修改密码',
                           onTap: () => _showPasswordSheet(context),
@@ -267,6 +275,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user.requireTime) parts.add('时间');
     if (user.requireFace) parts.add('人脸');
     return parts.isEmpty ? '无限制' : '标准验证 (${parts.join('+')})';
+  }
+
+  void _showNameSheet(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+    _nameCtrl.text = auth.currentUser?.fullName ?? '';
+    bool saving = false;
+    String? nameMsg;
+    bool nameSuccess = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 20,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text('修改姓名', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
+              const SizedBox(height: 20),
+              AppTextField(label: '姓名', controller: _nameCtrl, prefixIcon: Icons.person_outline),
+              if (nameMsg != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  nameMsg!,
+                  style: TextStyle(fontSize: 13, color: nameSuccess ? const Color(0xFF059669) : Colors.red.shade600),
+                ),
+              ],
+              const SizedBox(height: 20),
+              PrimaryButton(label: '确认修改', loading: saving, onPressed: () async {
+                final name = _nameCtrl.text.trim();
+                if (name.isEmpty) {
+                  setSheetState(() { nameMsg = '姓名不能为空'; nameSuccess = false; });
+                  return;
+                }
+                setSheetState(() { saving = true; nameMsg = null; });
+                try {
+                  await auth.updateFullName(name);
+                  setSheetState(() { nameMsg = '姓名修改成功'; nameSuccess = true; saving = false; });
+                  Future.delayed(const Duration(seconds: 1), () {
+                    if (ctx.mounted) Navigator.of(ctx).pop();
+                  });
+                } catch (_) {
+                  setSheetState(() { nameMsg = '修改失败，请重试'; nameSuccess = false; saving = false; });
+                }
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showPasswordSheet(BuildContext context) {

@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Float, Integer, String, ForeignKey
+from sqlalchemy import Boolean, Column, Float, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -13,6 +13,7 @@ class User(Base):
     is_active = Column(Boolean, default=False)       # True after first login setup
     is_admin = Column(Boolean, default=False)         # 保留兼容，由 role 推导
     face_enrolled = Column(Boolean, default=False)
+    face_embedding = Column(Text, nullable=True)      # JSON: list[float]
 
     # RBAC 角色
     role_id = Column(Integer, ForeignKey("roles.id"), nullable=True)
