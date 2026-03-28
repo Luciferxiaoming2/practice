@@ -89,7 +89,24 @@ NEXT_PUBLIC_AMAP_KEY=您的高德Key
 - API 地址默认回退到 `http://localhost:8000`，本地开发无需修改
 - 高德 Key 需到 [高德开放平台](https://console.amap.com/) 申请 Web端(JS API) Key
 
-### 7. 人脸识别（待接入）
+### 7. 中国大陆网络环境配置（Gradle 镜像）
+
+如果在中国大陆直接运行 `flutter run` 构建 Android 时出现 `Connection timed out`，需要将 Gradle 下载源切换为国内镜像：
+
+**文件：** `mobile/android/gradle/wrapper/gradle-wrapper.properties`
+
+将 `distributionUrl` 从官方源：
+```
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.14-all.zip
+```
+替换为腾讯云镜像：
+```
+distributionUrl=https\://mirrors.cloud.tencent.com/gradle/gradle-8.14-all.zip
+```
+
+> Maven 仓库镜像已在 `mobile/android/build.gradle.kts` 和 `mobile/android/settings.gradle.kts` 中配置了阿里云镜像，无需额外修改。
+
+### 8. 人脸识别（待接入）
 当前移动端人脸录入仅拍照并标记 `face_enrolled=true`，未接入真实识别算法。
 如需接入，在 `mobile/lib/screens/auth/setup_face_screen.dart` 的 `_submit()` 方法中
 上传照片到后端，并在后端集成第三方人脸 SDK（如阿里云、腾讯云人脸核身）。

@@ -1,12 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:amap_flutter_location/amap_flutter_location.dart';
 import 'providers/auth_provider.dart';
 import 'core/router.dart';
+import 'core/config.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 初始化高德定位 SDK
+  // TODO: 后期可从服务器动态下发 Key
+  AMapFlutterLocation.setApiKey(
+    AppConfig.amapAndroidKey,
+    AppConfig.amapIosKey,
+  );
+
+  final auth = AuthProvider();
+  await auth.init(); // 恢复本地登录状态
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AuthProvider(),
+    ChangeNotifierProvider.value(
+      value: auth,
       child: const App(),
     ),
   );
@@ -26,15 +40,18 @@ class App extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF7C3AED), // purple-600
+          seedColor: const Color(0xFF7C3AED),
           brightness: Brightness.light,
         ),
-        fontFamily: 'SF Pro Display',
         appBarTheme: const AppBarTheme(
           elevation: 0,
           scrolledUnderElevation: 0,
           backgroundColor: Colors.transparent,
-          titleTextStyle: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.black),
+          titleTextStyle: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
         ),
       ),
       darkTheme: ThemeData(
