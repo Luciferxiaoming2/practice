@@ -1,5 +1,5 @@
 class AppConfig {
-  static const amapAndroidKey = '您的高德Android_Key';
+  static const amapAndroidKey = '5a44af79a61bba9abbaba1f688cb2be3';
   static const amapIosKey = '您的高德iOS_Key';
 
   // 后端 API 地址 — 真机通过 adb reverse tcp:8000 tcp:8000 连接

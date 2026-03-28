@@ -8,27 +8,37 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: loading ? null : onPressed,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        height: 48,
+        duration: const Duration(milliseconds: 200),
+        height: 52,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: LinearGradient(
-            colors: [scheme.primary, Color.lerp(scheme.primary, Colors.black, 0.25)!],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          borderRadius: BorderRadius.circular(16),
+          color: const Color(0xFF7C3AED),
           boxShadow: [
-            BoxShadow(color: scheme.primary.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4)),
+            BoxShadow(
+              color: const Color(0xFF9333EA).withOpacity(0.39),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: Center(
           child: loading
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+              ? const SizedBox(
+                  width: 22, height: 22,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                )
+              : Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    letterSpacing: 1,
+                  ),
+                ),
         ),
       ),
     );
@@ -42,7 +52,6 @@ class StepIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Row(
       children: List.generate(total, (i) {
         final active = i < current;
@@ -52,7 +61,7 @@ class StepIndicator extends StatelessWidget {
             height: 4,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(2),
-              color: active ? scheme.primary : scheme.primary.withOpacity(0.2),
+              color: active ? const Color(0xFF7C3AED) : const Color(0xFF7C3AED).withOpacity(0.15),
             ),
           ),
         );

@@ -23,7 +23,7 @@
         <!-- 高德地图 API Key -->
         <meta-data
             android:name="com.amap.api.v2.apikey"
-            android:value="您的高德Android_Key"/>
+            android:value="5a44af79a61bba9abbaba1f688cb2be3"/>
 
         <!-- 高德定位 Service -->
         <service android:name="com.amap.api.location.APSService"/>

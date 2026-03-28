@@ -10,6 +10,9 @@ import 'core/theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 高德隐私合规（必须在 setApiKey 之前）
+  AMapFlutterLocation.updatePrivacyShow(true, true);
+  AMapFlutterLocation.updatePrivacyAgree(true);
   AMapFlutterLocation.setApiKey(AppConfig.amapAndroidKey, AppConfig.amapIosKey);
 
   final auth = AuthProvider();

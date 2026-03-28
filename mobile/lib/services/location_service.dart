@@ -1,104 +1,121 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:amap_flutter_location/amap_flutter_location.dart';
 import 'package:amap_flutter_location/amap_location_option.dart';
-import 'package:permission_handler/permission_handler.dart';
-
-enum LocationProvider { geolocator, amap }
 
 class LocationService {
-  LocationProvider provider;
-  LocationService({this.provider = LocationProvider.geolocator});
-
-  // 通用状态
   double? lat;
   double? lng;
   String? address;
   void Function(double lat, double lng, String? address)? onLocationChanged;
 
-  // geolocator
-  StreamSubscription<Position>? _geoSub;
-
-  // 高德
-  AMapFlutterLocation? _amapLocation;
+  AMapFlutterLocation? _amapClient;
   StreamSubscription? _amapSub;
+  int _retryCount = 0;
+  Timer? _retryTimer;
 
   Future<bool> requestPermission() async {
-    var status = await Permission.location.status;
-    if (!status.isGranted) {
-      status = await Permission.location.request();
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      debugPrint('[LocationService] Location service disabled');
+      return false;
     }
-    return status.isGranted;
+    var perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.denied) {
+      perm = await Geolocator.requestPermission();
+    }
+    debugPrint('[LocationService] Permission: $perm');
+    return perm == LocationPermission.whileInUse || perm == LocationPermission.always;
   }
 
   void startListening() {
-    if (provider == LocationProvider.amap) {
-      _startAmap();
-    } else {
-      _startGeolocator();
+    debugPrint('[LocationService] startListening called');
+    _startAmap();
+  }
+
+  void _startAmap() {
+    try {
+      // 销毁旧的
+      _stopAmap();
+
+      _amapClient = AMapFlutterLocation();
+      _amapClient!.setLocationOption(AMapLocationOption(
+        onceLocation: false,
+        locationInterval: 3000,
+        needAddress: true,
+        locationMode: AMapLocationMode.Hight_Accuracy,
+      ));
+
+      _amapSub = _amapClient!.onLocationChanged().listen((map) {
+        final la = map['latitude'];
+        final lo = map['longitude'];
+        final errorCode = map['errorCode'];
+
+        debugPrint('[LocationService] AMap data: lat=$la, lng=$lo, error=$errorCode');
+
+        if (errorCode != null && errorCode != 0) {
+          debugPrint('[LocationService] AMap error: code=$errorCode, info=${map['errorInfo']}');
+          // 出错后尝试重试
+          _scheduleRetry();
+          return;
+        }
+
+        if (la is num && lo is num && la != 0 && lo != 0) {
+          _retryCount = 0; // 成功了，重置重试计数
+          _retryTimer?.cancel();
+          lat = la.toDouble();
+          lng = lo.toDouble();
+          address = map['address'] as String?;
+          if (address == null || address!.isEmpty) {
+            address = '${lat!.toStringAsFixed(5)}, ${lng!.toStringAsFixed(5)}';
+          }
+          onLocationChanged?.call(lat!, lng!, address);
+        }
+      });
+
+      _amapClient!.startLocation();
+      debugPrint('[LocationService] AMap startLocation OK');
+
+      // 8秒后检查是否有数据
+      _retryTimer = Timer(const Duration(seconds: 8), () {
+        if (lat == null) {
+          debugPrint('[LocationService] No AMap data after 8s');
+          _scheduleRetry();
+        }
+      });
+    } catch (e) {
+      debugPrint('[LocationService] AMap exception: $e');
+      _scheduleRetry();
     }
   }
 
-  void stopListening() {
-    _stopGeolocator();
-    _stopAmap();
-  }
-
-  // ── Geolocator ──────────────────────────────────
-
-  void _startGeolocator() {
-    _geoSub = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 5,
-      ),
-    ).listen((pos) {
-      lat = pos.latitude;
-      lng = pos.longitude;
-      address = null; // geolocator 不提供地址，显示坐标
-      onLocationChanged?.call(lat!, lng!, address);
+  void _scheduleRetry() {
+    if (_retryCount >= 3) {
+      debugPrint('[LocationService] Max retries reached');
+      return;
+    }
+    _retryCount++;
+    _retryTimer?.cancel();
+    _retryTimer = Timer(Duration(seconds: 3 * _retryCount), () {
+      debugPrint('[LocationService] Retry #$_retryCount');
+      _startAmap();
     });
-
-    // 先获取一次当前位置
-    Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high).then((pos) {
-      lat = pos.latitude;
-      lng = pos.longitude;
-      onLocationChanged?.call(lat!, lng!, null);
-    }).catchError((_) {});
-  }
-
-  void _stopGeolocator() {
-    _geoSub?.cancel();
-    _geoSub = null;
-  }
-
-  // ── 高德定位 ──────────────────────────────────
-
-  void _startAmap() {
-    _amapLocation = AMapFlutterLocation();
-    _amapLocation!.setLocationOption(AMapLocationOption(
-      onceLocation: false,
-      locationInterval: 5000,
-      needAddress: true,
-    ));
-    _amapSub = _amapLocation!.onLocationChanged().listen((map) {
-      final la = map['latitude'];
-      final lo = map['longitude'];
-      if (la is num && lo is num && la != 0 && lo != 0) {
-        lat = la.toDouble();
-        lng = lo.toDouble();
-        address = map['address'] as String?;
-        onLocationChanged?.call(lat!, lng!, address);
-      }
-    });
-    _amapLocation!.startLocation();
   }
 
   void _stopAmap() {
-    _amapLocation?.stopLocation();
-    _amapSub?.cancel();
-    _amapLocation?.destroy();
-    _amapLocation = null;
+    try {
+      _amapClient?.stopLocation();
+      _amapSub?.cancel();
+      _amapClient?.destroy();
+    } catch (_) {}
+    _amapClient = null;
     _amapSub = null;
+  }
+
+  void stopListening() {
+    _stopAmap();
+    _retryTimer?.cancel();
+    _retryTimer = null;
   }
 }

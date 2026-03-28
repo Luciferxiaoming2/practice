@@ -9,14 +9,39 @@ class ShellScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (i) => navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.fingerprint), selectedIcon: Icon(Icons.fingerprint, size: 28), label: '打卡'),
-          NavigationDestination(icon: Icon(Icons.history_outlined), selectedIcon: Icon(Icons.history), label: '记录'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: '我的'),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: const Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 0.5)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 10,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: NavigationBar(
+          selectedIndex: navigationShell.currentIndex,
+          onDestinationSelected: (i) => navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.fingerprint),
+              selectedIcon: Icon(Icons.fingerprint, size: 26),
+              label: '打卡',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.history_outlined),
+              selectedIcon: Icon(Icons.history, size: 26),
+              label: '记录',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person, size: 26),
+              label: '我的',
+            ),
+          ],
+        ),
       ),
     );
   }
