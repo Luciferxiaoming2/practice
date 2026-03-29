@@ -525,42 +525,51 @@ class _CheckInButton extends StatelessWidget {
   Widget _buildContent() {
     switch (state) {
       case _CheckInState.idle:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 44, height: 44,
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFEDE9FE)),
-              child: const Icon(Icons.face_outlined, size: 24, color: Color(0xFF7C3AED)),
-            ),
-            const SizedBox(height: 4),
-            const Text('立即打卡', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
-          ],
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 44, height: 44,
+                decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFEDE9FE)),
+                child: const Icon(Icons.face_outlined, size: 24, color: Color(0xFF7C3AED)),
+              ),
+              const SizedBox(height: 6),
+              const Text('立即打卡', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
+            ],
+          ),
         );
       case _CheckInState.scanning:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 28, height: 28,
-              child: CircularProgressIndicator(strokeWidth: 2.5, color: const Color(0xFF7C3AED).withOpacity(0.6)),
-            ),
-            const SizedBox(height: 8),
-            const Text('检测中', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF7C3AED), letterSpacing: 2)),
-          ],
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 28, height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.5, color: const Color(0xFF7C3AED).withOpacity(0.6)),
+              ),
+              const SizedBox(height: 8),
+              const Text('检测中', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF7C3AED), letterSpacing: 2)),
+            ],
+          ),
         );
       case _CheckInState.success:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 44, height: 44,
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFD1FAE5)),
-              child: const Icon(Icons.check_circle, size: 28, color: Color(0xFF10B981)),
-            ),
-            const SizedBox(height: 4),
-            const Text('已打卡', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF059669))),
-          ],
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 44, height: 44,
+                decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFD1FAE5)),
+                child: const Icon(Icons.check_circle, size: 28, color: Color(0xFF10B981)),
+              ),
+              const SizedBox(height: 6),
+              const Text('已打卡', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF059669))),
+            ],
+          ),
         );
     }
   }
@@ -659,7 +668,7 @@ class _StatusCards extends StatelessWidget {
           child: _StatusCard(
             icon: Icons.shield_outlined,
             label: '人脸验证',
-            value: user.requireFace ? '要求活体' : '未要求',
+            value: user.requireFace ? '已启用' : '未要求',  // TODO: 后续实现活体检测
             iconColor: const Color(0xFF7C3AED),
             valueColor: const Color(0xFF5B21B6),
             valueBg: const Color(0xFFEDE9FE),
