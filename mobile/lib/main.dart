@@ -1,16 +1,18 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:amap_flutter_location/amap_flutter_location.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import 'core/config.dart';
+import 'core/router.dart';
+import 'core/theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/checkin_provider.dart';
-import 'core/router.dart';
-import 'core/config.dart';
-import 'core/theme.dart';
+import 'providers/realtime_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 高德隐私合规（必须在 setApiKey 之前）
   AMapFlutterLocation.updatePrivacyShow(true, true);
   AMapFlutterLocation.updatePrivacyAgree(true);
   AMapFlutterLocation.setApiKey(AppConfig.amapAndroidKey, AppConfig.amapIosKey);
@@ -22,6 +24,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider.value(value: auth),
         ChangeNotifierProvider(create: (_) => CheckinProvider()),
+        ChangeNotifierProvider(create: (_) => RealtimeProvider(auth)),
       ],
       child: const App(),
     ),
@@ -30,18 +33,22 @@ void main() async {
 
 class App extends StatefulWidget {
   const App({super.key});
+
   @override
   State<App> createState() => _AppState();
 }
 
 class _AppState extends State<App> {
+  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
   bool _ready = false;
-
   bool _initStarted = false;
+  int _lastShownNotificationId = 0;
+  GoRouter? _router;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _router ??= buildRouter(context.read<AuthProvider>());
     if (!_initStarted) {
       _initStarted = true;
       _init();
@@ -50,15 +57,37 @@ class _AppState extends State<App> {
 
   Future<void> _init() async {
     await context.read<AuthProvider>().init();
-    if (mounted) setState(() => _ready = true);
+    if (mounted) {
+      setState(() => _ready = true);
+    }
+  }
+
+  void _flushRealtimeNotification(RealtimeProvider realtime) {
+    final latest = realtime.latestNotification;
+    if (latest == null || latest.id == _lastShownNotificationId) return;
+
+    _lastShownNotificationId = latest.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _messengerKey.currentState
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(latest.message),
+            backgroundColor: const Color(0xFF1E293B),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      context.read<RealtimeProvider>().markLatestAsDelivered();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final router = buildRouter(auth);
+    final realtime = context.watch<RealtimeProvider>();
+    _flushRealtimeNotification(realtime);
 
-    if (!_ready) {
+    if (!_ready || _router == null) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: lightTheme,
@@ -91,7 +120,8 @@ class _AppState extends State<App> {
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: ThemeMode.system,
-      routerConfig: router,
+      routerConfig: _router!,
+      scaffoldMessengerKey: _messengerKey,
     );
   }
 }

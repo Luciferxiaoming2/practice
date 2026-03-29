@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     // 进入页面时检查今日打卡状态
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthProvider>().refreshUser();
       _checkTodayCheckin();
     });
   }

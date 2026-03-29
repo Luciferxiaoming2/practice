@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
+
+from app.core import require_admin
 from app.database import get_db
 from app.models.department import Department
 from app.models.user import User
-from app.schemas.department import DepartmentCreate, DepartmentOut, DepartmentUpdate, BatchRulesBody
-from app.core import require_admin
+from app.realtime import notify_rule_updated
+from app.schemas.department import BatchRulesBody, DepartmentCreate, DepartmentOut, DepartmentUpdate
 
 router = APIRouter(prefix="/departments", tags=["departments"])
 
@@ -56,7 +58,13 @@ def delete_department(dept_id: int, db: Session = Depends(get_db), _=Depends(req
 
 
 @router.post("/{dept_id}/batch-rules")
-def batch_update_rules(dept_id: int, body: BatchRulesBody, db: Session = Depends(get_db), _=Depends(require_admin)):
+def batch_update_rules(
+    dept_id: int,
+    body: BatchRulesBody,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(require_admin),
+):
     dept = db.query(Department).filter(Department.id == dept_id).first()
     if not dept:
         raise HTTPException(status_code=404, detail="部门不存在")
@@ -69,9 +77,18 @@ def batch_update_rules(dept_id: int, body: BatchRulesBody, db: Session = Depends
     if not update_data:
         raise HTTPException(status_code=400, detail="未提供任何更新字段")
 
+    affected_user_ids = [user.id for user in users]
     for user in users:
         for field, value in update_data.items():
             setattr(user, field, value)
 
     db.commit()
+    background_tasks.add_task(
+        notify_rule_updated,
+        affected_user_ids,
+        actor_id=int(payload["sub"]),
+        changed_fields=list(update_data.keys()),
+        scope="department",
+        scope_id=dept_id,
+    )
     return {"detail": f"已更新 {len(users)} 名用户的打卡规则"}

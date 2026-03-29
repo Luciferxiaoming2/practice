@@ -2,6 +2,13 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { MapPin, Loader2, Search, X } from "lucide-react"
 
+// 安全密钥必须在 JSAPI 脚本加载前设置
+if (typeof window !== "undefined") {
+  ;(window as any)._AMapSecurityConfig = {
+    securityJsCode: process.env.NEXT_PUBLIC_AMAP_SECRET || "",
+  }
+}
+
 interface LocationPickerProps {
   lat: number | string
   lng: number | string
@@ -48,17 +55,19 @@ export default function LocationPicker({ lat, lng, radius, onChange }: LocationP
     mapElRef.current = mapEl
 
     async function init() {
-      ;(window as any)._AMapSecurityConfig = {
-        securityJsCode: process.env.NEXT_PUBLIC_AMAP_SECRET || "",
+      // 复用已加载的 AMap 实例，避免多次 load 冲突
+      let AMap = (window as any).AMap
+      if (!AMap) {
+        const AMapLoader = (await import("@amap/amap-jsapi-loader")).default
+        AMap = await AMapLoader.load({
+          key: process.env.NEXT_PUBLIC_AMAP_KEY || "",
+          version: "2.0",
+          plugins: ["AMap.Geocoder", "AMap.PlaceSearch"],
+        })
+      } else if (!AMap.PlaceSearch) {
+        // AMap 已加载但缺少插件，补充加载
+        await new Promise<void>((resolve) => AMap.plugin(["AMap.PlaceSearch"], resolve))
       }
-
-      const AMapLoader = (await import("@amap/amap-jsapi-loader")).default
-
-      const AMap = await AMapLoader.load({
-        key: process.env.NEXT_PUBLIC_AMAP_KEY || "",
-        version: "2.0",
-        plugins: ["AMap.Geocoder", "AMap.PlaceSearch"],
-      })
 
       if (destroyed) return
       amapRef.current = AMap

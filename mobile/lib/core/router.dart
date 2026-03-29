@@ -19,6 +19,7 @@ final _rootKey = GlobalKey<NavigatorState>();
 GoRouter buildRouter(AuthProvider auth) => GoRouter(
       navigatorKey: _rootKey,
       initialLocation: '/login',
+      refreshListenable: auth,
       redirect: (context, state) {
         final loggedIn = auth.isLoggedIn;
         final loc = state.matchedLocation;
