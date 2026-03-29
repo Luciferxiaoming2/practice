@@ -29,7 +29,9 @@ npm run dev -- --port 3000
 # 访问: http://localhost:3000
 ```
 
-### 3. 移动端（Flutter + 真机 USB 调试）
+### 3. 移动端（Flutter）
+
+#### Android 真机 USB 调试
 
 **Step 1：USB 连接真机并开启开发者模式 + USB 调试**
 
@@ -53,6 +55,61 @@ flutter run -d <设备ID>
 
 **注意：** 使用 `adb reverse` 后，移动端 API 地址保持 `http://127.0.0.1:8000` 即可，无需改为局域网 IP。
 
+#### iOS 模拟器调试
+
+**Step 1：安装 CocoaPods 依赖**
+```bash
+cd mobile/ios
+pod install
+```
+
+**Step 2：启动 iOS 模拟器**
+```bash
+open -a Simulator
+```
+
+**Step 3：确认模拟器已连接**
+```bash
+flutter devices
+```
+
+**Step 4：运行到模拟器**
+```bash
+cd mobile
+flutter run -d <模拟器ID>
+```
+
+> iOS 模拟器可直接访问 `http://127.0.0.1:8000`，无需额外配置端口转发。
+
+#### iOS 真机调试
+
+**Step 1：安装 CocoaPods 依赖**
+```bash
+cd mobile/ios
+pod install
+```
+
+**Step 2：使用 Xcode 配置签名**
+1. 打开 `mobile/ios/Runner.xcworkspace`（注意是 `.xcworkspace` 不是 `.xcodeproj`）
+2. 选择 Runner 项目 → Signing & Capabilities
+3. 选择你的 Apple Developer Team
+4. 修改 Bundle Identifier（如 `com.yourcompany.attendance`）
+
+**Step 3：USB 连接 iPhone 并信任电脑**
+
+**Step 4：确认设备已连接**
+```bash
+flutter devices
+```
+
+**Step 5：运行到真机**
+```bash
+cd mobile
+flutter run -d <设备ID>
+```
+
+> iOS 真机需要通过 Wi-Fi 或修改 API 地址为电脑局域网 IP（如 `http://192.168.1.x:8000`）来访问后端。
+
 ### 一键启动（Windows）
 
 也可以直接双击项目根目录的 `start.bat` 启动后端和 Web 端，双击 `stop.bat` 停止。移动端仍需手动执行上述 Step 2-4。
@@ -60,6 +117,31 @@ flutter run -d <设备ID>
 ---
 
 ## ⚠️ 需要手动配置的内容
+
+### 0. 开发环境要求
+
+#### 后端
+- Python 3.8+
+- pip 或 uv
+
+#### Web 管理端
+- Node.js 16+
+- npm 或 yarn
+
+#### 移动端
+- Flutter 3.0+
+- Dart 2.17+
+
+**Android 开发：**
+- Android Studio
+- Android SDK (API 21+)
+- Java JDK 11+
+
+**iOS 开发（仅限 macOS）：**
+- macOS 12.0 (Monterey) 或更高版本
+- Xcode 14.0 或更高版本
+- CocoaPods 1.11+
+- Apple Developer 账号（真机调试需要）
 
 ### 1. 默认超级管理员账号
 | 账号 | 密码 | 角色 |
@@ -94,14 +176,18 @@ SECRET_KEY = "change-me-in-production"
 <uses-permission android:name="android.permission.INTERNET"/>
 ```
 
-### 5. iOS 权限配置
-在 `mobile/ios/Runner/Info.plist` 中添加：
-```xml
-<key>NSLocationWhenInUseUsageDescription</key>
-<string>打卡需要获取您的位置</string>
-<key>NSCameraUsageDescription</key>
-<string>打卡需要使用摄像头进行人脸识别</string>
+### 5. iOS 配置
+
+**首次运行前安装依赖：**
+```bash
+cd mobile/ios
+pod install
 ```
+
+**配置高德地图 Key：**
+将 `mobile/ios/Runner/Info.plist` 中的 `您的高德iOS_Key` 替换为实际申请的 [高德iOS Key](https://console.amap.com/)
+
+> 权限配置已完成，无需额外修改。如遇 CocoaPods 问题可执行 `pod repo update`
 
 ### 6. Web 端环境配置
 在 `web/.env.local` 中配置：
@@ -138,19 +224,19 @@ distributionUrl=https\://mirrors.cloud.tencent.com/gradle/gradle-8.14-all.zip
 
 ## 功能清单
 
-| 功能 | Web 管理端 | Flutter 移动端 |
-|------|-----------|--------------|
-| 登录 | ✅ | ✅ |
-| 新建账户 | ✅ | — |
-| 重置密码 | ✅ | ✅ |
-| 重置人脸 | ✅ | — |
-| 配置打卡规则 | ✅ | — |
-| 首次登录引导 | — | ✅ |
-| 人脸录入 | — | ✅（待接入SDK）|
-| GPS 打卡 | ✅（高德地图）| ✅ |
-| 时间段验证 | ✅ | ✅ |
-| 打卡记录 | ✅ | 🚧 |
-| RBAC 角色权限 | ✅ | — |
+| 功能 | Web 管理端 | Android | iOS |
+|------|-----------|---------|-----|
+| 登录 | ✅ | ✅ | ✅ |
+| 新建账户 | ✅ | — | — |
+| 重置密码 | ✅ | ✅ | ✅ |
+| 重置人脸 | ✅ | — | — |
+| 配置打卡规则 | ✅ | — | — |
+| 首次登录引导 | — | ✅ | ✅ |
+| 人脸录入 | — | ✅（待接入SDK）| ✅（待接入SDK）|
+| GPS 打卡 | ✅（高德地图）| ✅ | ✅ |
+| 时间段验证 | ✅ | ✅ | ✅ |
+| 打卡记录 | ✅ | 🚧 | 🚧 |
+| RBAC 角色权限 | ✅ | — | — |
 
 ✅ 已完成　🚧 待开发
 
