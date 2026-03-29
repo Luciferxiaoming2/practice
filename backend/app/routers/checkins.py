@@ -1,4 +1,5 @@
 import math
+import logging
 import httpx
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -57,7 +58,19 @@ def _check_status(user: User, lat: Optional[float], lng: Optional[float], checki
         if lat is None or lng is None:
             return "location_fail"
         if user.location_lat is not None and user.location_lng is not None and user.location_radius is not None:
-            dist = _haversine(lat, lng, user.location_lat, user.location_lng)
+            # 自动修正 lat/lng 填反的情况（纬度范围 -90~90，经度范围 -180~180）
+            cfg_lat = user.location_lat
+            cfg_lng = user.location_lng
+            if abs(cfg_lat) > 90 and abs(cfg_lng) <= 90:
+                cfg_lat, cfg_lng = cfg_lng, cfg_lat
+                logging.getLogger("checkin").warning(
+                    f"[location_check] user={user.id} lat/lng appear swapped, auto-corrected"
+                )
+            dist = _haversine(lat, lng, cfg_lat, cfg_lng)
+            logging.getLogger("checkin").info(
+                f"[location_check] user={user.id} dist={dist:.1f}m radius={user.location_radius}m "
+                f"user_pos=({lat},{lng}) config_pos=({cfg_lat},{cfg_lng})"
+            )
             if dist > user.location_radius:
                 return "location_fail"
 

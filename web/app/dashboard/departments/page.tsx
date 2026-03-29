@@ -267,18 +267,18 @@ function DeleteModal({ dept, onClose, onDeleted }: { dept: Department; onClose: 
 /* -- Batch Rules Modal -- */
 function BatchRulesModal({ dept, onClose, onSaved }: { dept: Department; onClose: () => void; onSaved: () => void }) {
   const [rules, setRules] = useState({
-    require_sign_in: true,
-    require_sign_out: false,
-    require_location: false,
-    location_lat: "",
-    location_lng: "",
-    location_radius: "",
-    require_time: false,
-    checkin_time_start: "",
-    checkin_time_end: "",
-    sign_out_time_start: "",
-    sign_out_time_end: "",
-    require_face: false,
+    require_sign_in: dept.require_sign_in ?? true,
+    require_sign_out: dept.require_sign_out ?? false,
+    require_location: dept.require_location ?? false,
+    location_lat: dept.location_lat?.toString() ?? "",
+    location_lng: dept.location_lng?.toString() ?? "",
+    location_radius: dept.location_radius?.toString() ?? "",
+    require_time: dept.require_time ?? false,
+    checkin_time_start: dept.checkin_time_start ?? "",
+    checkin_time_end: dept.checkin_time_end ?? "",
+    sign_out_time_start: dept.sign_out_time_start ?? "",
+    sign_out_time_end: dept.sign_out_time_end ?? "",
+    require_face: dept.require_face ?? false,
   })
   const [saving, setSaving] = useState(false)
 
@@ -336,10 +336,12 @@ function BatchRulesModal({ dept, onClose, onSaved }: { dept: Department; onClose
                 <div className="grid grid-cols-3 gap-2">
                   <Field label="纬度">
                     <Input type="number" step="any" placeholder="30.2741" value={rules.location_lat}
+                      min="-90" max="90"
                       onChange={(e) => setRules({ ...rules, location_lat: e.target.value })} />
                   </Field>
                   <Field label="经度">
                     <Input type="number" step="any" placeholder="120.1551" value={rules.location_lng}
+                      min="-180" max="180"
                       onChange={(e) => setRules({ ...rules, location_lng: e.target.value })} />
                   </Field>
                   <Field label="半径(米)">

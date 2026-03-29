@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -424,7 +425,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 20),
 
                     // Status cards
-                    if (user != null) _StatusCards(user: user, locationReady: _locationReady),
+                    if (user != null) _StatusCards(user: user, locationReady: _locationReady, lat: _lat, lng: _lng),
                   ],
                 ),
               ),
@@ -636,20 +637,62 @@ class _PulseRingState extends State<_PulseRing> with SingleTickerProviderStateMi
 class _StatusCards extends StatelessWidget {
   final dynamic user;
   final bool locationReady;
-  const _StatusCards({required this.user, required this.locationReady});
+  final double? lat;
+  final double? lng;
+  const _StatusCards({required this.user, required this.locationReady, this.lat, this.lng});
+
+  double? _calcDist() {
+    if (lat == null || lng == null) return null;
+    final uLat = user.locationLat;
+    final uLng = user.locationLng;
+    if (uLat == null || uLng == null) return null;
+    const R = 6371000.0;
+    final dLat = (lat! - uLat) * math.pi / 180;
+    final dLng = (lng! - uLng) * math.pi / 180;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(uLat * math.pi / 180) * math.cos(lat! * math.pi / 180) *
+        math.sin(dLng / 2) * math.sin(dLng / 2);
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  }
 
   @override
   Widget build(BuildContext context) {
+    final dist = _calcDist();
+    final radius = user.locationRadius;
+    final inRange = dist != null && radius != null && dist <= radius;
+    final locationValue = !user.requireLocation
+        ? '未要求'
+        : !locationReady
+            ? '定位中...'
+            : dist == null
+                ? '已定位'
+                : inRange
+                    ? '范围内 ${dist.toStringAsFixed(0)}m'
+                    : '超出范围 ${dist.toStringAsFixed(0)}m';
+    final locationValueColor = !user.requireLocation
+        ? const Color(0xFF065F46)
+        : !locationReady
+            ? const Color(0xFF64748B)
+            : inRange
+                ? const Color(0xFF065F46)
+                : const Color(0xFF991B1B);
+    final locationValueBg = !user.requireLocation
+        ? const Color(0xFFD1FAE5)
+        : !locationReady
+            ? const Color(0xFFF1F5F9)
+            : inRange
+                ? const Color(0xFFD1FAE5)
+                : const Color(0xFFFEE2E2);
     return Row(
       children: [
         Expanded(
           child: _StatusCard(
             icon: Icons.location_on_outlined,
             label: '定位围栏',
-            value: user.requireLocation ? (locationReady ? '已在范围内' : '定位中...') : '未要求',
+            value: locationValue,
             iconColor: const Color(0xFF059669),
-            valueColor: locationReady ? const Color(0xFF065F46) : const Color(0xFF64748B),
-            valueBg: locationReady ? const Color(0xFFD1FAE5) : const Color(0xFFF1F5F9),
+            valueColor: locationValueColor,
+            valueBg: locationValueBg,
           ),
         ),
         const SizedBox(width: 8),

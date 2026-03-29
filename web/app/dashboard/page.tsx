@@ -32,7 +32,7 @@ export default function DashboardPage() {
   const [checkins, setCheckins] = useState<CheckIn[]>([])
   const [loading, setLoading] = useState(false)
   const [timeRange, setTimeRange] = useState<"24h" | "7d" | "30d">("24h")
-  const [now, setNow] = useState(new Date())
+  const [now, setNow] = useState<Date | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchFocused, setSearchFocused] = useState(false)
 
@@ -74,6 +74,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     load()
+    setNow(new Date())
     const timer = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(timer)
   }, [load])
@@ -139,7 +140,9 @@ export default function DashboardPage() {
     return !u.is_active
   }).length
 
-  const clockStr = now.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
+  const clockStr = now
+    ? now.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
+    : "--:--:--"
 
   // Global search
   const q = searchQuery.trim().toLowerCase()

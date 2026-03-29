@@ -191,6 +191,18 @@ export interface Department {
   id: number
   name: string
   description: string | null
+  require_sign_in?: boolean
+  require_sign_out?: boolean
+  require_location?: boolean
+  location_lat?: number | null
+  location_lng?: number | null
+  location_radius?: number | null
+  require_time?: boolean
+  checkin_time_start?: string | null
+  checkin_time_end?: string | null
+  sign_out_time_start?: string | null
+  sign_out_time_end?: string | null
+  require_face?: boolean
 }
 
 export async function getDepartments() { return (await api.get<Department[]>("/departments/")).data }

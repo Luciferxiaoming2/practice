@@ -400,10 +400,12 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
                 <div className="grid grid-cols-3 gap-2 mt-2">
                   <Field label="纬度">
                     <Input type="number" step="any" placeholder="30.2741" value={rules.location_lat}
+                      min="-90" max="90"
                       onChange={(e) => setRules({ ...rules, location_lat: e.target.value })} />
                   </Field>
                   <Field label="经度">
                     <Input type="number" step="any" placeholder="120.1551" value={rules.location_lng}
+                      min="-180" max="180"
                       onChange={(e) => setRules({ ...rules, location_lng: e.target.value })} />
                   </Field>
                   <Field label="半径(米)">
