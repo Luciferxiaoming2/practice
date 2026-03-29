@@ -1,5 +1,17 @@
 # 熵析云枢打卡系统
 
+## 端口说明
+
+| 服务 | 端口 | 地址 |
+|------|------|------|
+| 后端 API（FastAPI） | `8000` | http://localhost:8000 |
+| Web 管理端（Next.js） | `3000` | http://localhost:3000 |
+| API 文档（Swagger） | `8000` | http://localhost:8000/docs |
+
+> 移动端（Flutter）通过 `adb reverse tcp:8000 tcp:8000` 将真机流量转发到本机 8000 端口，无需额外端口。
+
+---
+
 ## 项目结构
 
 ```
@@ -17,7 +29,9 @@ one/
 ### 1. 后端（FastAPI）
 ```bash
 cd backend
-D:\uv\venvs\practice\Scripts\activate
+# 激活虚拟环境（根据实际路径调整）
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 # API 文档: http://localhost:8000/docs
 ```
@@ -25,7 +39,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ### 2. Web 管理端（Next.js）
 ```bash
 cd web
-npm run dev -- --port 3000
+npm run dev
 # 访问: http://localhost:3000
 ```
 
@@ -215,10 +229,10 @@ distributionUrl=https\://mirrors.cloud.tencent.com/gradle/gradle-8.14-all.zip
 
 > Maven 仓库镜像已在 `mobile/android/build.gradle.kts` 和 `mobile/android/settings.gradle.kts` 中配置了阿里云镜像，无需额外修改。
 
-### 8. 人脸识别（待接入）
-当前移动端人脸录入仅拍照并标记 `face_enrolled=true`，未接入真实识别算法。
-如需接入，在 `mobile/lib/screens/auth/setup_face_screen.dart` 的 `_submit()` 方法中
-上传照片到后端，并在后端集成第三方人脸 SDK（如阿里云、腾讯云人脸核身）。
+### 8. 人脸识别
+后端已通过 `face_recognition` 库实现真实的人脸检测与嵌入比对（`backend/app/services/face_service.py`）。移动端打卡时会调用 `/face/verify` 接口进行验证。
+
+如需替换为第三方云端 SDK（如阿里云、腾讯云人脸核身），修改 `backend/app/services/face_service.py` 中的 `detect_and_encode` 和 `compare_embeddings` 函数即可，接口层无需改动。
 
 ---
 
@@ -227,16 +241,30 @@ distributionUrl=https\://mirrors.cloud.tencent.com/gradle/gradle-8.14-all.zip
 | 功能 | Web 管理端 | Android | iOS |
 |------|-----------|---------|-----|
 | 登录 | ✅ | ✅ | ✅ |
-| 新建账户 | ✅ | — | — |
+| 注册账户（自助） | ✅ | ✅ | ✅ |
+| 新建账户（管理员） | ✅ | ✅ | ✅ |
 | 重置密码 | ✅ | ✅ | ✅ |
 | 重置人脸 | ✅ | — | — |
-| 配置打卡规则 | ✅ | — | — |
-| 首次登录引导 | — | ✅ | ✅ |
-| 人脸录入 | — | ✅（待接入SDK）| ✅（待接入SDK）|
-| GPS 打卡 | ✅（高德地图）| ✅ | ✅ |
-| 时间段验证 | ✅ | ✅ | ✅ |
-| 打卡记录 | ✅ | 🚧 | 🚧 |
-| RBAC 角色权限 | ✅ | — | — |
+| 首次登录引导（改密码+录人脸） | — | ✅ | ✅ |
+| 人脸录入 | — | ✅ | ✅ |
+| 人脸验证（打卡时） | — | ✅ | ✅ |
+| GPS 打卡（高德地图） | ✅ | ✅ | ✅ |
+| 签到 / 签退分别配置 | ✅ | ✅ | ✅ |
+| 时间段验证（签到/签退独立窗口） | ✅ | ✅ | ✅ |
+| 位置围栏验证（Haversine 距离） | ✅ | ✅ | ✅ |
+| 逆地理编码（坐标转地址） | ✅（后端） | ✅（后端） | ✅（后端） |
+| 打卡记录查看 | ✅ | ✅ | ✅ |
+| 打卡记录筛选（用户/日期） | ✅ | ✅ | ✅ |
+| 打卡记录删除 / 批量删除 | ✅ | — | — |
+| 打卡记录导出 CSV | ✅ | — | — |
+| 配置打卡规则（个人） | ✅ | — | — |
+| 配置打卡规则（部门批量） | ✅ | — | — |
+| 部门管理 | ✅ | ✅ | ✅ |
+| RBAC 角色权限管理 | ✅ | — | — |
+| 权限分组配置 | ✅ | — | — |
+| 管理员控制台（统计图表） | ✅ | ✅ | ✅ |
+| 全局搜索（用户/记录） | ✅ | — | — |
+| WebSocket 实时通知 | ✅ | 🚧 | 🚧 |
 
 ✅ 已完成　🚧 待开发
 
