@@ -49,27 +49,84 @@ export default function DashboardPage() {
     setLoading(false)
   }, [])
 
+  // 根据时间范围加载打卡数据
+  const loadCheckinsByRange = useCallback(async (range: "24h" | "7d" | "30d") => {
+    const now = new Date()
+    let dateFrom = ""
+    
+    if (range === "24h") {
+      dateFrom = now.toISOString().slice(0, 10)
+    } else if (range === "7d") {
+      const d = new Date(now)
+      d.setDate(d.getDate() - 6)
+      dateFrom = d.toISOString().slice(0, 10)
+    } else {
+      const d = new Date(now)
+      d.setDate(d.getDate() - 29)
+      dateFrom = d.toISOString().slice(0, 10)
+    }
+    
+    try {
+      const c = await getCheckins({ date_from: dateFrom, date_to: now.toISOString().slice(0, 10) })
+      setCheckins(c)
+    } catch {}
+  }, [])
+
   useEffect(() => {
     load()
     const timer = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(timer)
   }, [load])
 
+  // 当时间范围改变时重新加载数据
+  useEffect(() => {
+    loadCheckinsByRange(timeRange)
+  }, [timeRange, loadCheckinsByRange])
+
   const total = users.length
   const totalCheckins = checkins.length
   const okCheckins = checkins.filter((c) => c.status === "ok").length
   const successRate = totalCheckins > 0 ? ((okCheckins / totalCheckins) * 100).toFixed(1) : "100.0"
 
-  // Build chart data: group checkins by hour
-  const chartData = Array.from({ length: 13 }, (_, i) => {
-    const hour = 8 + i
-    const label = `${String(hour).padStart(2, "0")}:00`
-    const count = checkins.filter((c) => {
-      const h = new Date(c.timestamp).getHours()
-      return h === hour
-    }).length
-    return { time: label, count }
-  })
+  // Build chart data based on time range
+  const chartData = (() => {
+    if (timeRange === "24h") {
+      // 按小时分组（8:00-20:00）
+      return Array.from({ length: 13 }, (_, i) => {
+        const hour = 8 + i
+        const label = `${String(hour).padStart(2, "0")}:00`
+        const count = checkins.filter((c) => {
+          const h = new Date(c.timestamp).getHours()
+          return h === hour
+        }).length
+        return { time: label, count }
+      })
+    } else if (timeRange === "7d") {
+      // 按天分组（最近7天）
+      return Array.from({ length: 7 }, (_, i) => {
+        const d = new Date()
+        d.setDate(d.getDate() - (6 - i))
+        const dateStr = d.toISOString().slice(0, 10)
+        const label = `${d.getMonth() + 1}/${d.getDate()}`
+        const count = checkins.filter((c) => {
+          return c.timestamp.slice(0, 10) === dateStr
+        }).length
+        return { time: label, count }
+      })
+    } else {
+      // 按天分组（最近30天，每5天一个点）
+      return Array.from({ length: 6 }, (_, i) => {
+        const d = new Date()
+        d.setDate(d.getDate() - (25 - i * 5))
+        const dateStr = d.toISOString().slice(0, 10)
+        const label = `${d.getMonth() + 1}/${d.getDate()}`
+        const count = checkins.filter((c) => {
+          return c.timestamp.slice(0, 10) === dateStr
+        }).length
+        return { time: label, count }
+      })
+    }
+  })()
 
   // Recent checkins
   const userMap = new Map(users.map((u) => [u.id, u.full_name || u.username]))
