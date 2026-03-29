@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/api.dart' show clearSessionStorage, storage;
 import '../models/user.dart';
 import '../services/auth_service.dart';
-import '../core/api.dart' show storage;
 
 class AuthProvider extends ChangeNotifier {
   User? currentUser;
@@ -23,15 +23,18 @@ class AuthProvider extends ChangeNotifier {
     try {
       final raw = await authService.getMe(int.parse(userIdStr));
       currentUser = User.fromJson(raw);
-      // 缓存到本地
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_user', jsonEncode(raw));
-    } catch (_) {
-      // API 不通时尝试离线缓存
-      final prefs = await SharedPreferences.getInstance();
-      final cached = prefs.getString('cached_user');
-      if (cached != null) {
-        currentUser = User.fromJson(jsonDecode(cached));
+    } catch (e) {
+      if (_isAuthFailure(e)) {
+        await clearSessionStorage();
+        currentUser = null;
+      } else {
+        final prefs = await SharedPreferences.getInstance();
+        final cached = prefs.getString('cached_user');
+        if (cached != null) {
+          currentUser = User.fromJson(jsonDecode(cached));
+        }
       }
     }
     notifyListeners();
@@ -45,7 +48,6 @@ class AuthProvider extends ChangeNotifier {
       final token = await authService.login(username, password);
       await storage.write(key: 'token', value: token);
 
-      // 从 JWT 解析 userId
       final userId = _parseUserIdFromJwt(token);
       await storage.write(key: 'userId', value: userId.toString());
 
@@ -68,7 +70,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
     try {
       await authService.register(username, fullName, password);
-      // 注册成功后自动登录
       await login(username, password);
       return;
     } catch (e) {
@@ -115,23 +116,34 @@ class AuthProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_user', jsonEncode(raw));
       notifyListeners();
-    } catch (_) {}
+    } catch (e) {
+      if (_isAuthFailure(e)) {
+        await clearSessionStorage();
+        currentUser = null;
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> logout() async {
-    await storage.delete(key: 'token');
-    await storage.delete(key: 'userId');
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('cached_user');
+    await clearSessionStorage();
     currentUser = null;
     notifyListeners();
   }
 
-  // 清除所有状态（用于切换用户）
   void clearAllState() {
     currentUser = null;
     loading = false;
     error = null;
+  }
+
+  bool _isAuthFailure(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('not authenticated') ||
+        message.contains('unauthorized') ||
+        message.contains('401') ||
+        message.contains('未认证') ||
+        message.contains('登录失效');
   }
 
   int _parseUserIdFromJwt(String token) {

@@ -80,6 +80,7 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
       setState(() => _error = '请先拍摄人脸照片');
       return;
     }
+    final auth = context.read<AuthProvider>();
     setState(() { _loading = true; _error = null; });
     try {
       // 上传照片到后端进行人脸录入
@@ -89,7 +90,6 @@ class _SetupFaceScreenState extends State<SetupFaceScreen> {
         return;
       }
       // 更新本地状态
-      final auth = context.read<AuthProvider>();
       await auth.markFaceEnrolled();
       if (mounted) {
         // 延迟一帧确保状态更新后再导航，避免 StatefulShellRoute 路由问题

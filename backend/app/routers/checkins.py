@@ -76,8 +76,7 @@ def _check_status(user: User, lat: Optional[float], lng: Optional[float], checki
 
     # 时间校验：签到和签退使用不同的时间窗口，允许提前1小时
     if user.require_time:
-        now_str = datetime.now().strftime("%H:%M")
-        now_min = _minutes_of(now_str)
+        now_min = _minutes_of(datetime.now().strftime("%H:%M"))
         if checkin_type == "sign_out":
             start = user.sign_out_time_start
             end = user.sign_out_time_end
@@ -90,20 +89,18 @@ def _check_status(user: User, lat: Optional[float], lng: Optional[float], checki
             early_min = s_min - 60  # 允许提前1小时
 
             if s_min <= e_min:
-                # 正常时间窗
                 if now_min < early_min:
-                    return "time_early"  # 早到（提前超过1小时）
-                elif now_min < s_min:
-                    return "ok"  # 提前1小时内，允许
-                elif now_min > e_min:
-                    return "time_late"   # 迟到
+                    return "time_early"
+                if now_min <= e_min:
+                    return "ok"
+                return "time_late"
             else:
-                # 跨午夜
-                if not (now_min >= early_min or now_min <= e_min):
-                    if now_min < early_min:
-                        return "time_early"
-                    else:
-                        return "time_late"
+                # 跨午夜时间窗：例如 23:00-01:00
+                if now_min >= early_min or now_min <= e_min:
+                    return "ok"
+                if now_min < early_min:
+                    return "time_early"
+                return "time_late"
 
     return "ok"
 

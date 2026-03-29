@@ -78,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _doCheckin() async {
     final user = context.read<AuthProvider>().currentUser;
+    final checkin = context.read<CheckinProvider>();
     if (user != null && !user.faceEnrolled) {
       _showFaceEnrollDialog();
       return;
@@ -86,7 +87,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final passed = await _showFaceVerification();
       if (!passed) return;
     }
-    final checkin = context.read<CheckinProvider>();
     await checkin.doCheckin(_lat, _lng, type: _checkinType);
   }
 
@@ -155,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Positioned.fill(child: CustomPaint(painter: _MapGridPainter())),
                   // Purple tint
                   Positioned.fill(
-                    child: Container(color: const Color(0xFF7C3AED).withValues(alpha: 0.05)),
+                    child: Container(color: const Color(0xFF7C3AED).withOpacity(0.05)),
                   ),
                   // Top gradient
                   Positioned(
@@ -164,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                          colors: [Colors.white.withValues(alpha: 0.6), Colors.transparent],
+                          colors: [Colors.white.withOpacity(0.6), Colors.transparent],
                         ),
                       ),
                     ),
@@ -176,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.white.withValues(alpha: 0.9)],
+                          colors: [Colors.transparent, Colors.white.withOpacity(0.9)],
                         ),
                       ),
                     ),
@@ -187,8 +187,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 160, height: 160,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFF7C3AED).withValues(alpha: 0.08),
-                        border: Border.all(color: const Color(0xFF7C3AED).withValues(alpha: 0.25)),
+                        color: const Color(0xFF7C3AED).withOpacity(0.08),
+                        border: Border.all(color: const Color(0xFF7C3AED).withOpacity(0.25)),
                       ),
                     ),
                   ),
@@ -201,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFF7C3AED),
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: [BoxShadow(color: const Color(0xFF7C3AED).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))],
+                          boxShadow: [BoxShadow(color: const Color(0xFF7C3AED).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
                         ),
                         child: const Text('打卡范围', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
                       ),
@@ -221,9 +221,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,8 +248,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: 40, height: 40,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.9),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+                    color: Colors.white.withOpacity(0.9),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
                   ),
                   child: Stack(
                     children: [
@@ -273,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 24, offset: const Offset(0, -8))],
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 24, offset: const Offset(0, -8))],
               ),
               child: SingleChildScrollView(
                 padding: EdgeInsets.only(left: 24, right: 24, top: 80, bottom: bottomPadding + 12),
@@ -374,9 +374,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
-                          color: (checkin.checkinSuccess ? const Color(0xFF10B981) : Colors.red).withValues(alpha: 0.08),
+                          color: (checkin.checkinSuccess ? const Color(0xFF10B981) : Colors.red).withOpacity(0.08),
                           border: Border.all(
-                            color: (checkin.checkinSuccess ? const Color(0xFF10B981) : Colors.red).withValues(alpha: 0.2),
+                            color: (checkin.checkinSuccess ? const Color(0xFF10B981) : Colors.red).withOpacity(0.2),
                           ),
                         ),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -465,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // 检查是否有今天的打卡记录（根据当前选择的类型）
     return checkin.records.any((r) {
       final recordDate = r.timestamp.toIso8601String().substring(0, 10);
-      final recordType = r.type ?? 'sign_in';
+      final recordType = r.type;
       return recordDate == todayStr && recordType == _checkinType;
     });
   }

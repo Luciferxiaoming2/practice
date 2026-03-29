@@ -13,7 +13,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => context.read<CheckinProvider>().loadHistory());
+    final checkin = context.read<CheckinProvider>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkin.loadHistory();
+    });
   }
 
   @override

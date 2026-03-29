@@ -55,6 +55,11 @@ export interface RoleBrief {
   name: string
 }
 
+export interface DepartmentBrief {
+  id: number
+  name: string
+}
+
 export async function getPermissions() {
   const { data } = await api.get<Permission[]>("/roles/permissions")
   return data
@@ -100,6 +105,7 @@ export interface User {
   role_id: number | null
   role: RoleBrief | null
   department_id: number | null
+  department: DepartmentBrief | null
   require_location: boolean
   location_lat: number | null
   location_lng: number | null
@@ -157,6 +163,7 @@ export async function deleteUser(id: number) {
 export interface CheckIn {
   id: number
   user_id: number
+  user_name?: string | null
   timestamp: string
   lat: number | null
   lng: number | null

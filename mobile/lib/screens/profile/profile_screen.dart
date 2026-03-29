@@ -43,6 +43,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _pwdCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final user = auth.currentUser;
@@ -229,7 +237,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         // 清除所有Provider状态
                         context.read<CheckinProvider>().clearAllState();
                         await auth.logout();
-                        if (context.mounted) context.go('/login');
+                        if (!context.mounted) return;
+                        context.go('/login');
                       },
                       child: Container(
                         width: double.infinity,

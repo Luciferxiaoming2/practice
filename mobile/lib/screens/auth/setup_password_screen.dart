@@ -38,6 +38,13 @@ class _SetupPasswordScreenState extends State<SetupPasswordScreen> {
   }
 
   @override
+  void dispose() {
+    _pwdCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(

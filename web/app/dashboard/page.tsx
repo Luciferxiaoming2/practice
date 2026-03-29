@@ -15,7 +15,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { staggerContainer, staggerItem } from "@/lib/motion"
 import { getUsers, getCheckins, type User, type CheckIn } from "@/lib/api"
-import { useAuth } from "@/lib/auth-context"
 import {
   ResponsiveContainer,
   AreaChart,
@@ -26,8 +25,14 @@ import {
   Tooltip,
 } from "recharts"
 
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
 export default function DashboardPage() {
-  const { isAdmin } = useAuth()
   const [users, setUsers] = useState<User[]>([])
   const [checkins, setCheckins] = useState<CheckIn[]>([])
   const [loading, setLoading] = useState(false)
@@ -39,9 +44,10 @@ export default function DashboardPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
+      const today = formatLocalDate(new Date())
       const [u, c] = await Promise.all([
         getUsers(),
-        getCheckins({ date_from: new Date().toISOString().slice(0, 10), date_to: new Date().toISOString().slice(0, 10) }),
+        getCheckins({ date_from: today, date_to: today }),
       ])
       setUsers(u)
       setCheckins(c)
@@ -55,19 +61,19 @@ export default function DashboardPage() {
     let dateFrom = ""
     
     if (range === "24h") {
-      dateFrom = now.toISOString().slice(0, 10)
+      dateFrom = formatLocalDate(now)
     } else if (range === "7d") {
       const d = new Date(now)
       d.setDate(d.getDate() - 6)
-      dateFrom = d.toISOString().slice(0, 10)
+      dateFrom = formatLocalDate(d)
     } else {
       const d = new Date(now)
       d.setDate(d.getDate() - 29)
-      dateFrom = d.toISOString().slice(0, 10)
+      dateFrom = formatLocalDate(d)
     }
     
     try {
-      const c = await getCheckins({ date_from: dateFrom, date_to: now.toISOString().slice(0, 10) })
+      const c = await getCheckins({ date_from: dateFrom, date_to: formatLocalDate(now) })
       setCheckins(c)
     } catch {}
   }, [])
@@ -107,7 +113,7 @@ export default function DashboardPage() {
       return Array.from({ length: 7 }, (_, i) => {
         const d = new Date()
         d.setDate(d.getDate() - (6 - i))
-        const dateStr = d.toISOString().slice(0, 10)
+        const dateStr = formatLocalDate(d)
         const label = `${d.getMonth() + 1}/${d.getDate()}`
         const count = checkins.filter((c) => {
           return c.timestamp.slice(0, 10) === dateStr
@@ -119,7 +125,7 @@ export default function DashboardPage() {
       return Array.from({ length: 6 }, (_, i) => {
         const d = new Date()
         d.setDate(d.getDate() - (25 - i * 5))
-        const dateStr = d.toISOString().slice(0, 10)
+        const dateStr = formatLocalDate(d)
         const label = `${d.getMonth() + 1}/${d.getDate()}`
         const count = checkins.filter((c) => {
           return c.timestamp.slice(0, 10) === dateStr
