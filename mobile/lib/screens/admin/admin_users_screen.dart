@@ -4,6 +4,7 @@ import '../../services/admin_service.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/shared_widgets.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/simple_location_picker.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({super.key});
@@ -315,130 +316,126 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     bool saving = false;
     String? msg;
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => Container(
-          padding: EdgeInsets.only(
-            left: 24, right: 24, top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 20,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 20),
-                Text('编辑用户 - ${user.fullName}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
-                const SizedBox(height: 20),
-                AppTextField(label: '姓名', controller: nameCtrl, prefixIcon: Icons.badge_outlined),
-                const SizedBox(height: 14),
-                // Role selector
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    borderRadius: BorderRadius.circular(12),
-                    color: const Color(0xFFF8FAFC),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: selectedRoleId,
-                      isExpanded: true,
-                      hint: const Text('选择角色'),
-                      items: _roles.map((r) => DropdownMenuItem<int>(
-                        value: r['id'],
-                        child: Text(r['name'] ?? ''),
-                      )).toList(),
-                      onChanged: (v) => setS(() => selectedRoleId = v),
+        builder: (ctx, setS) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: 500,
+              maxHeight: MediaQuery.of(ctx).size.height * 0.8,
+            ),
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('编辑用户 - ${user.fullName}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
+                  const SizedBox(height: 20),
+                  AppTextField(label: '姓名', controller: nameCtrl, prefixIcon: Icons.badge_outlined),
+                  const SizedBox(height: 14),
+                  // Role selector
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(12),
+                      color: const Color(0xFFF8FAFC),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                // Department selector
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    borderRadius: BorderRadius.circular(12),
-                    color: const Color(0xFFF8FAFC),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int?>(
-                      value: selectedDepartmentId,
-                      isExpanded: true,
-                      hint: const Text('选择部门'),
-                      items: [
-                        const DropdownMenuItem<int?>(value: null, child: Text('无部门')),
-                        ..._departments.map((d) => DropdownMenuItem<int?>(
-                          value: d['id'],
-                          child: Text(d['name'] ?? ''),
-                        )),
-                      ],
-                      onChanged: (v) => setS(() => selectedDepartmentId = v),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                // Active toggle
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isActive ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: isActive ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.toggle_on_outlined, size: 20, color: isActive ? const Color(0xFF059669) : const Color(0xFF94A3B8)),
-                      const SizedBox(width: 10),
-                      Expanded(child: Text('账户激活', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isActive ? const Color(0xFF1E293B) : const Color(0xFF64748B)))),
-                      Switch(
-                        value: isActive,
-                        onChanged: (v) => setS(() => isActive = v),
-                        activeColor: const Color(0xFF059669),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: selectedRoleId,
+                        isExpanded: true,
+                        hint: const Text('选择角色'),
+                        items: _roles.map((r) => DropdownMenuItem<int>(
+                          value: r['id'],
+                          child: Text(r['name'] ?? ''),
+                        )).toList(),
+                        onChanged: (v) => setS(() => selectedRoleId = v),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-                if (msg != null) ...[
-                  const SizedBox(height: 12),
-                  Text(msg!, style: TextStyle(fontSize: 13, color: Colors.red.shade600)),
-                ],
-                const SizedBox(height: 20),
-                PrimaryButton(label: '保存', loading: saving, onPressed: () async {
-                  final name = nameCtrl.text.trim();
-                  if (name.isEmpty) {
-                    setS(() => msg = '请填写姓名');
-                    return;
-                  }
-                  setS(() { saving = true; msg = null; });
-                  try {
-                    await adminService.updateUser(user.id, {
-                      'full_name': name,
-                      'role_id': selectedRoleId,
-                      'department_id': selectedDepartmentId,
-                      'is_active': isActive,
-                    });
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    _load();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('用户信息已更新'), backgroundColor: Color(0xFF059669)),
-                      );
+                  const SizedBox(height: 14),
+                  // Department selector
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(12),
+                      color: const Color(0xFFF8FAFC),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int?>(
+                        value: selectedDepartmentId,
+                        isExpanded: true,
+                        hint: const Text('选择部门'),
+                        items: [
+                          const DropdownMenuItem<int?>(value: null, child: Text('无部门')),
+                          ..._departments.map((d) => DropdownMenuItem<int?>(
+                            value: d['id'],
+                            child: Text(d['name'] ?? ''),
+                          )),
+                        ],
+                        onChanged: (v) => setS(() => selectedDepartmentId = v),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Active toggle
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isActive ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: isActive ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.toggle_on_outlined, size: 20, color: isActive ? const Color(0xFF059669) : const Color(0xFF94A3B8)),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text('账户激活', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isActive ? const Color(0xFF1E293B) : const Color(0xFF64748B)))),
+                        Switch(
+                          value: isActive,
+                          onChanged: (v) => setS(() => isActive = v),
+                          activeColor: const Color(0xFF059669),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (msg != null) ...[
+                    const SizedBox(height: 12),
+                    Text(msg!, style: TextStyle(fontSize: 13, color: Colors.red.shade600)),
+                  ],
+                  const SizedBox(height: 20),
+                  PrimaryButton(label: '保存', loading: saving, onPressed: () async {
+                    final name = nameCtrl.text.trim();
+                    if (name.isEmpty) {
+                      setS(() => msg = '请填写姓名');
+                      return;
                     }
-                  } catch (e) {
-                    setS(() { saving = false; msg = e.toString(); });
-                  }
-                }),
-              ],
+                    setS(() { saving = true; msg = null; });
+                    try {
+                      await adminService.updateUser(user.id, {
+                        'full_name': name,
+                        'role_id': selectedRoleId,
+                        'department_id': selectedDepartmentId,
+                        'is_active': isActive,
+                      });
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      _load();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('用户信息已更新'), backgroundColor: Color(0xFF059669)),
+                        );
+                      }
+                    } catch (e) {
+                      setS(() { saving = false; msg = e.toString(); });
+                    }
+                  }),
+                ],
+              ),
             ),
           ),
         ),
@@ -512,13 +509,22 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 ),
                 if (reqLoc) ...[
                   const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(child: AppTextField(label: '纬度', controller: latCtrl, prefixIcon: Icons.my_location)),
-                    const SizedBox(width: 10),
-                    Expanded(child: AppTextField(label: '经度', controller: lngCtrl, prefixIcon: Icons.my_location)),
-                  ]),
+                  SimpleLocationPicker(
+                    initialLat: user.locationLat,
+                    initialLng: user.locationLng,
+                    radius: user.locationRadius ?? 200,
+                    onLocationSelected: (lat, lng, address) {
+                      latCtrl.text = lat.toString();
+                      lngCtrl.text = lng.toString();
+                    },
+                  ),
                   const SizedBox(height: 10),
-                  AppTextField(label: '半径(米)', controller: radiusCtrl, prefixIcon: Icons.radar),
+                  AppTextField(
+                    label: '打卡半径(米)',
+                    controller: radiusCtrl,
+                    prefixIcon: Icons.radar,
+                    hint: '200',
+                  ),
                 ],
                 const SizedBox(height: 16),
 

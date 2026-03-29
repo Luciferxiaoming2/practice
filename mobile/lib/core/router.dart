@@ -11,6 +11,7 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/admin/admin_users_screen.dart';
 import '../screens/admin/admin_checkins_screen.dart';
 import '../screens/admin/admin_departments_screen.dart';
+import '../screens/admin/admin_dashboard_screen.dart';
 import '../screens/shell_screen.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
@@ -26,11 +27,11 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
         if (!loggedIn && !onAuth) return '/login';
         if (loggedIn && onAuth) {
           if (auth.needsSetup) return '/setup/password';
-          return auth.currentUser!.isAdmin ? '/admin/users' : '/home';
+          return auth.currentUser!.isAdmin ? '/admin/dashboard' : '/home';
         }
         // 已完成设置的用户不应停留在 setup 页面
         if (loggedIn && onSetup && !auth.needsSetup) {
-          return auth.currentUser!.isAdmin ? '/admin/users' : '/home';
+          return auth.currentUser!.isAdmin ? '/admin/dashboard' : '/home';
         }
         // 普通用户不能访问 admin 路由
         if (loggedIn && !auth.needsSetup && loc.startsWith('/admin') && !(auth.currentUser?.isAdmin ?? false)) {
@@ -50,6 +51,9 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
           builder: (_, __, shell) => AdminShellScreen(navigationShell: shell),
           branches: [
             StatefulShellBranch(routes: [
+              GoRoute(path: '/admin/dashboard', builder: (_, __) => const AdminDashboardScreen()),
+            ]),
+            StatefulShellBranch(routes: [
               GoRoute(path: '/admin/users', builder: (_, __) => const AdminUsersScreen()),
             ]),
             StatefulShellBranch(routes: [
@@ -57,9 +61,6 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
             ]),
             StatefulShellBranch(routes: [
               GoRoute(path: '/admin/departments', builder: (_, __) => const AdminDepartmentsScreen()),
-            ]),
-            StatefulShellBranch(routes: [
-              GoRoute(path: '/admin/home', builder: (_, __) => const HomeScreen()),
             ]),
             StatefulShellBranch(routes: [
               GoRoute(path: '/admin/profile', builder: (_, __) => const ProfileScreen()),

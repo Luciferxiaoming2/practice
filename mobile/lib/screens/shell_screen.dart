@@ -27,9 +27,14 @@ class AdminShellScreen extends StatelessWidget {
           onDestinationSelected: (i) => navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex),
           destinations: const [
             NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard, size: 26),
+              label: '控制台',
+            ),
+            NavigationDestination(
               icon: Icon(Icons.admin_panel_settings_outlined),
               selectedIcon: Icon(Icons.admin_panel_settings, size: 26),
-              label: '管理',
+              label: '账户',
             ),
             NavigationDestination(
               icon: Icon(Icons.list_alt_outlined),
@@ -40,11 +45,6 @@ class AdminShellScreen extends StatelessWidget {
               icon: Icon(Icons.business_outlined),
               selectedIcon: Icon(Icons.business, size: 26),
               label: '部门',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.fingerprint),
-              selectedIcon: Icon(Icons.fingerprint, size: 26),
-              label: '打卡',
             ),
             NavigationDestination(
               icon: Icon(Icons.person_outline),

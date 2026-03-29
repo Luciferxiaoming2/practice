@@ -3,6 +3,7 @@ import '../../services/admin_service.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/shared_widgets.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/simple_location_picker.dart';
 
 class AdminDepartmentsScreen extends StatefulWidget {
   const AdminDepartmentsScreen({super.key});
@@ -251,61 +252,57 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
     bool saving = false;
     String? msg;
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => Container(
-          padding: EdgeInsets.only(
-            left: 24, right: 24, top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 20,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 20),
-                Text('编辑部门 - ${dept['name']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
-                const SizedBox(height: 20),
-                AppTextField(label: '部门名称', controller: nameCtrl, prefixIcon: Icons.business_outlined),
-                const SizedBox(height: 14),
-                AppTextField(label: '部门描述', controller: descCtrl, prefixIcon: Icons.description_outlined),
-                if (msg != null) ...[
-                  const SizedBox(height: 12),
-                  Text(msg!, style: TextStyle(fontSize: 13, color: Colors.red.shade600)),
-                ],
-                const SizedBox(height: 20),
-                PrimaryButton(label: '保存', loading: saving, onPressed: () async {
-                  final name = nameCtrl.text.trim();
-                  if (name.isEmpty) {
-                    setS(() => msg = '请填写部门名称');
-                    return;
-                  }
-                  setS(() { saving = true; msg = null; });
-                  try {
-                    await adminService.updateDepartment(dept['id'], {
-                      'name': name,
-                      'description': descCtrl.text.trim(),
-                    });
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    _load();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('部门已更新'), backgroundColor: Color(0xFF059669)),
-                      );
+        builder: (ctx, setS) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: 500,
+              maxHeight: MediaQuery.of(ctx).size.height * 0.8,
+            ),
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('编辑部门 - ${dept['name']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
+                  const SizedBox(height: 20),
+                  AppTextField(label: '部门名称', controller: nameCtrl, prefixIcon: Icons.business_outlined),
+                  const SizedBox(height: 14),
+                  AppTextField(label: '部门描述', controller: descCtrl, prefixIcon: Icons.description_outlined),
+                  if (msg != null) ...[
+                    const SizedBox(height: 12),
+                    Text(msg!, style: TextStyle(fontSize: 13, color: Colors.red.shade600)),
+                  ],
+                  const SizedBox(height: 20),
+                  PrimaryButton(label: '保存', loading: saving, onPressed: () async {
+                    final name = nameCtrl.text.trim();
+                    if (name.isEmpty) {
+                      setS(() => msg = '请填写部门名称');
+                      return;
                     }
-                  } catch (e) {
-                    setS(() { saving = false; msg = e.toString(); });
-                  }
-                }),
-              ],
+                    setS(() { saving = true; msg = null; });
+                    try {
+                      await adminService.updateDepartment(dept['id'], {
+                        'name': name,
+                        'description': descCtrl.text.trim(),
+                      });
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      _load();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('部门已更新'), backgroundColor: Color(0xFF059669)),
+                        );
+                      }
+                    } catch (e) {
+                      setS(() { saving = false; msg = e.toString(); });
+                    }
+                  }),
+                ],
+              ),
             ),
           ),
         ),
@@ -329,138 +326,138 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
     final signOutEndCtrl = TextEditingController();
     bool saving = false;
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => Container(
-          constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
-          padding: EdgeInsets.only(
-            left: 24, right: 24, top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 20,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 20),
-                Text('批量打卡规则 - ${dept['name']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
-                const SizedBox(height: 4),
-                const Text('将规则应用到该部门所有成员', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-                const SizedBox(height: 20),
+        builder: (ctx, setS) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: 500,
+              maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+            ),
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('批量打卡规则 - ${dept['name']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
+                  const SizedBox(height: 4),
+                  const Text('将规则应用到该部门所有成员', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                  const SizedBox(height: 20),
 
-                // Sign in / Sign out
-                _RuleToggle(
-                  icon: Icons.login,
-                  label: '要求签到',
-                  value: reqSignIn,
-                  onChanged: (v) => setS(() => reqSignIn = v),
-                ),
-                const SizedBox(height: 16),
-                _RuleToggle(
-                  icon: Icons.logout,
-                  label: '要求签退',
-                  value: reqSignOut,
-                  onChanged: (v) => setS(() => reqSignOut = v),
-                ),
-                const SizedBox(height: 16),
+                  _RuleToggle(
+                    icon: Icons.login,
+                    label: '要求签到',
+                    value: reqSignIn,
+                    onChanged: (v) => setS(() => reqSignIn = v),
+                  ),
+                  const SizedBox(height: 16),
+                  _RuleToggle(
+                    icon: Icons.logout,
+                    label: '要求签退',
+                    value: reqSignOut,
+                    onChanged: (v) => setS(() => reqSignOut = v),
+                  ),
+                  const SizedBox(height: 16),
 
-                // Location
-                _RuleToggle(
-                  icon: Icons.location_on_outlined,
-                  label: '要求地点打卡',
-                  value: reqLoc,
-                  onChanged: (v) => setS(() => reqLoc = v),
-                ),
-                if (reqLoc) ...[
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(child: AppTextField(label: '纬度', controller: latCtrl, prefixIcon: Icons.my_location)),
-                    const SizedBox(width: 10),
-                    Expanded(child: AppTextField(label: '经度', controller: lngCtrl, prefixIcon: Icons.my_location)),
-                  ]),
-                  const SizedBox(height: 10),
-                  AppTextField(label: '半径(米)', controller: radiusCtrl, prefixIcon: Icons.radar),
-                ],
-                const SizedBox(height: 16),
+                  _RuleToggle(
+                    icon: Icons.location_on_outlined,
+                    label: '要求地点打卡',
+                    value: reqLoc,
+                    onChanged: (v) => setS(() => reqLoc = v),
+                  ),
+                  if (reqLoc) ...[
+                    const SizedBox(height: 12),
+                    SimpleLocationPicker(
+                      initialLat: latCtrl.text.isNotEmpty ? double.tryParse(latCtrl.text) : null,
+                      initialLng: lngCtrl.text.isNotEmpty ? double.tryParse(lngCtrl.text) : null,
+                      radius: radiusCtrl.text.isNotEmpty ? double.tryParse(radiusCtrl.text) ?? 200 : 200,
+                      onLocationSelected: (lat, lng, address) {
+                        latCtrl.text = lat.toString();
+                        lngCtrl.text = lng.toString();
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    AppTextField(
+                      label: '打卡半径(米)',
+                      controller: radiusCtrl,
+                      prefixIcon: Icons.radar,
+                      hint: '200',
+                    ),
+                  ],
+                  const SizedBox(height: 16),
 
-                // Time
-                _RuleToggle(
-                  icon: Icons.schedule_outlined,
-                  label: '要求时间段打卡',
-                  value: reqTime,
-                  onChanged: (v) => setS(() => reqTime = v),
-                ),
-                if (reqTime) ...[
-                  const SizedBox(height: 12),
-                  const Text('签到时间窗口', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    Expanded(child: AppTextField(label: '开始时间', controller: startCtrl, prefixIcon: Icons.login, hint: '09:00')),
-                    const SizedBox(width: 10),
-                    Expanded(child: AppTextField(label: '结束时间', controller: endCtrl, prefixIcon: Icons.logout, hint: '10:00')),
-                  ]),
-                  const SizedBox(height: 12),
-                  const Text('签退时间窗口', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    Expanded(child: AppTextField(label: '开始时间', controller: signOutStartCtrl, prefixIcon: Icons.login, hint: '17:00')),
-                    const SizedBox(width: 10),
-                    Expanded(child: AppTextField(label: '结束时间', controller: signOutEndCtrl, prefixIcon: Icons.logout, hint: '18:00')),
-                  ]),
-                ],
-                const SizedBox(height: 16),
+                  _RuleToggle(
+                    icon: Icons.schedule_outlined,
+                    label: '要求时间段打卡',
+                    value: reqTime,
+                    onChanged: (v) => setS(() => reqTime = v),
+                  ),
+                  if (reqTime) ...[
+                    const SizedBox(height: 12),
+                    const Text('签到时间窗口', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      Expanded(child: AppTextField(label: '开始时间', controller: startCtrl, prefixIcon: Icons.login, hint: '09:00')),
+                      const SizedBox(width: 10),
+                      Expanded(child: AppTextField(label: '结束时间', controller: endCtrl, prefixIcon: Icons.logout, hint: '10:00')),
+                    ]),
+                    const SizedBox(height: 12),
+                    const Text('签退时间窗口', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      Expanded(child: AppTextField(label: '开始时间', controller: signOutStartCtrl, prefixIcon: Icons.login, hint: '17:00')),
+                      const SizedBox(width: 10),
+                      Expanded(child: AppTextField(label: '结束时间', controller: signOutEndCtrl, prefixIcon: Icons.logout, hint: '18:00')),
+                    ]),
+                  ],
+                  const SizedBox(height: 16),
 
-                // Face
-                _RuleToggle(
-                  icon: Icons.face_outlined,
-                  label: '要求人脸识别',
-                  value: reqFace,
-                  onChanged: (v) => setS(() => reqFace = v),
-                ),
-                const SizedBox(height: 24),
+                  _RuleToggle(
+                    icon: Icons.face_outlined,
+                    label: '要求人脸识别',
+                    value: reqFace,
+                    onChanged: (v) => setS(() => reqFace = v),
+                  ),
+                  const SizedBox(height: 24),
 
-                PrimaryButton(label: '应用规则', loading: saving, onPressed: () async {
-                  setS(() => saving = true);
-                  try {
-                    await adminService.batchDepartmentRules(dept['id'], {
-                      'require_sign_in': reqSignIn,
-                      'require_sign_out': reqSignOut,
-                      'require_location': reqLoc,
-                      'location_lat': reqLoc && latCtrl.text.isNotEmpty ? double.tryParse(latCtrl.text) : null,
-                      'location_lng': reqLoc && lngCtrl.text.isNotEmpty ? double.tryParse(lngCtrl.text) : null,
-                      'location_radius': reqLoc && radiusCtrl.text.isNotEmpty ? double.tryParse(radiusCtrl.text) : null,
-                      'require_time': reqTime,
-                      'checkin_time_start': reqTime ? startCtrl.text : null,
-                      'checkin_time_end': reqTime ? endCtrl.text : null,
-                      'sign_out_time_start': reqTime ? signOutStartCtrl.text : null,
-                      'sign_out_time_end': reqTime ? signOutEndCtrl.text : null,
-                      'require_face': reqFace,
-                    });
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    _load();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('规则已应用到部门所有成员'), backgroundColor: Color(0xFF059669)),
-                      );
+                  PrimaryButton(label: '应用规则', loading: saving, onPressed: () async {
+                    setS(() => saving = true);
+                    try {
+                      await adminService.batchDepartmentRules(dept['id'], {
+                        'require_sign_in': reqSignIn,
+                        'require_sign_out': reqSignOut,
+                        'require_location': reqLoc,
+                        'location_lat': reqLoc && latCtrl.text.isNotEmpty ? double.tryParse(latCtrl.text) : null,
+                        'location_lng': reqLoc && lngCtrl.text.isNotEmpty ? double.tryParse(lngCtrl.text) : null,
+                        'location_radius': reqLoc && radiusCtrl.text.isNotEmpty ? double.tryParse(radiusCtrl.text) : null,
+                        'require_time': reqTime,
+                        'checkin_time_start': reqTime ? startCtrl.text : null,
+                        'checkin_time_end': reqTime ? endCtrl.text : null,
+                        'sign_out_time_start': reqTime ? signOutStartCtrl.text : null,
+                        'sign_out_time_end': reqTime ? signOutEndCtrl.text : null,
+                        'require_face': reqFace,
+                      });
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      _load();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('规则已应用到部门所有成员'), backgroundColor: Color(0xFF059669)),
+                        );
+                      }
+                    } catch (e) {
+                      setS(() => saving = false);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+                        );
+                      }
                     }
-                  } catch (e) {
-                    setS(() => saving = false);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-                      );
-                    }
-                  }
-                }),
-              ],
+                  }),
+                ],
+              ),
             ),
           ),
         ),
