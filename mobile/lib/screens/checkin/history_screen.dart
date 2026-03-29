@@ -108,9 +108,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   time: '${r.timestamp.hour.toString().padLeft(2, '0')}:${r.timestamp.minute.toString().padLeft(2, '0')}',
                                   date: '${r.timestamp.month}月${r.timestamp.day}日',
                                   statusRaw: r.status,
-                                  location: r.lat != null && r.lng != null
+                                  typeLabel: r.typeLabel,
+                                  location: r.address ?? (r.lat != null && r.lng != null
                                       ? '${r.lat!.toStringAsFixed(4)}, ${r.lng!.toStringAsFixed(4)}'
-                                      : null,
+                                      : null),
                                   showLine: !isLast,
                                 );
                               },
@@ -131,6 +132,7 @@ class _TimelineItem extends StatelessWidget {
   final String time;
   final String date;
   final String statusRaw;
+  final String typeLabel;
   final String? location;
   final bool showLine;
 
@@ -139,6 +141,7 @@ class _TimelineItem extends StatelessWidget {
     required this.time,
     required this.date,
     required this.statusRaw,
+    this.typeLabel = '签到',
     this.location,
     required this.showLine,
   });
@@ -146,7 +149,9 @@ class _TimelineItem extends StatelessWidget {
   String get _statusBadgeText => switch (statusRaw) {
         'ok' => '正常打卡',
         'location_fail' => '位置异常',
-        'time_fail' => '迟到异常',
+        'time_early' => '早到',
+        'time_late' => '迟到',
+        'time_fail' => '迟到',
         'face_fail' => '人脸异常',
         _ => statusRaw,
       };
@@ -154,7 +159,9 @@ class _TimelineItem extends StatelessWidget {
   String get _faceText => switch (statusRaw) {
         'ok' => '人脸验证通过',
         'location_fail' => '位置异常',
-        'time_fail' => '迟到异常',
+        'time_early' => '早到',
+        'time_late' => '迟到',
+        'time_fail' => '迟到',
         'face_fail' => '人脸异常',
         _ => statusRaw,
       };
@@ -225,6 +232,25 @@ class _TimelineItem extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(date, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF64748B))),
                       const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: typeLabel == '签退' ? const Color(0xFFF5F3FF) : const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: typeLabel == '签退' ? const Color(0xFFDDD6FE) : const Color(0xFFBFDBFE),
+                          ),
+                        ),
+                        child: Text(
+                          typeLabel,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: typeLabel == '签退' ? const Color(0xFF7C3AED) : const Color(0xFF2563EB),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(

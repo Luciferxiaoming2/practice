@@ -10,6 +10,7 @@ import '../screens/checkin/history_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/admin/admin_users_screen.dart';
 import '../screens/admin/admin_checkins_screen.dart';
+import '../screens/admin/admin_departments_screen.dart';
 import '../screens/shell_screen.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
@@ -53,6 +54,9 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
             ]),
             StatefulShellBranch(routes: [
               GoRoute(path: '/admin/checkins', builder: (_, __) => const AdminCheckinsScreen()),
+            ]),
+            StatefulShellBranch(routes: [
+              GoRoute(path: '/admin/departments', builder: (_, __) => const AdminDepartmentsScreen()),
             ]),
             StatefulShellBranch(routes: [
               GoRoute(path: '/admin/home', builder: (_, __) => const HomeScreen()),

@@ -14,6 +14,7 @@ class AdminUsersScreen extends StatefulWidget {
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
   List<User> _users = [];
   List<Map<String, dynamic>> _roles = [];
+  List<Map<String, dynamic>> _departments = [];
   bool _loading = true;
   String? _error;
 
@@ -29,9 +30,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       final results = await Future.wait([
         adminService.getUsers(),
         adminService.getRoles(),
+        adminService.getDepartments(),
       ]);
       _users = (results[0] as List).map((j) => User.fromJson(j)).toList();
       _roles = List<Map<String, dynamic>>.from(results[1] as List);
+      _departments = List<Map<String, dynamic>>.from(results[2] as List);
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -151,6 +154,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               ),
             ),
             const Divider(height: 1),
+            _ActionTile(icon: Icons.edit, label: '编辑用户', color: const Color(0xFF059669), onTap: () {
+              Navigator.pop(ctx);
+              _showEditSheet(user);
+            }),
             _ActionTile(icon: Icons.tune, label: '打卡规则', color: const Color(0xFF7C3AED), onTap: () {
               Navigator.pop(ctx);
               _showRulesSheet(user);
@@ -179,6 +186,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final nameCtrl = TextEditingController();
     final pwdCtrl = TextEditingController();
     int? selectedRoleId = _roles.isNotEmpty ? _roles.last['id'] : null;
+    int? selectedDepartmentId;
     bool saving = false;
     String? msg;
 
@@ -232,6 +240,31 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 14),
+                // Department selector
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFFF8FAFC),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int?>(
+                      value: selectedDepartmentId,
+                      isExpanded: true,
+                      hint: const Text('选择部门'),
+                      items: [
+                        const DropdownMenuItem<int?>(value: null, child: Text('无部门')),
+                        ..._departments.map((d) => DropdownMenuItem<int?>(
+                          value: d['id'],
+                          child: Text(d['name'] ?? ''),
+                        )),
+                      ],
+                      onChanged: (v) => setS(() => selectedDepartmentId = v),
+                    ),
+                  ),
+                ),
                 if (msg != null) ...[
                   const SizedBox(height: 12),
                   Text(msg!, style: TextStyle(fontSize: 13, color: Colors.red.shade600)),
@@ -252,6 +285,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       fullName: name,
                       password: pwd,
                       roleId: selectedRoleId,
+                      departmentId: selectedDepartmentId,
                     );
                     if (ctx.mounted) Navigator.pop(ctx);
                     _load();
@@ -272,8 +306,150 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     );
   }
 
+  // ── Edit user ──
+  void _showEditSheet(User user) {
+    final nameCtrl = TextEditingController(text: user.fullName);
+    int? selectedRoleId = user.roleId ?? (_roles.isNotEmpty ? _roles.last['id'] : null);
+    int? selectedDepartmentId = user.departmentId;
+    bool isActive = user.isActive;
+    bool saving = false;
+    String? msg;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => Container(
+          padding: EdgeInsets.only(
+            left: 24, right: 24, top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom + 20,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 20),
+                Text('编辑用户 - ${user.fullName}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
+                const SizedBox(height: 20),
+                AppTextField(label: '姓名', controller: nameCtrl, prefixIcon: Icons.badge_outlined),
+                const SizedBox(height: 14),
+                // Role selector
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFFF8FAFC),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: selectedRoleId,
+                      isExpanded: true,
+                      hint: const Text('选择角色'),
+                      items: _roles.map((r) => DropdownMenuItem<int>(
+                        value: r['id'],
+                        child: Text(r['name'] ?? ''),
+                      )).toList(),
+                      onChanged: (v) => setS(() => selectedRoleId = v),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // Department selector
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFFF8FAFC),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int?>(
+                      value: selectedDepartmentId,
+                      isExpanded: true,
+                      hint: const Text('选择部门'),
+                      items: [
+                        const DropdownMenuItem<int?>(value: null, child: Text('无部门')),
+                        ..._departments.map((d) => DropdownMenuItem<int?>(
+                          value: d['id'],
+                          child: Text(d['name'] ?? ''),
+                        )),
+                      ],
+                      onChanged: (v) => setS(() => selectedDepartmentId = v),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // Active toggle
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isActive ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: isActive ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.toggle_on_outlined, size: 20, color: isActive ? const Color(0xFF059669) : const Color(0xFF94A3B8)),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text('账户激活', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isActive ? const Color(0xFF1E293B) : const Color(0xFF64748B)))),
+                      Switch(
+                        value: isActive,
+                        onChanged: (v) => setS(() => isActive = v),
+                        activeColor: const Color(0xFF059669),
+                      ),
+                    ],
+                  ),
+                ),
+                if (msg != null) ...[
+                  const SizedBox(height: 12),
+                  Text(msg!, style: TextStyle(fontSize: 13, color: Colors.red.shade600)),
+                ],
+                const SizedBox(height: 20),
+                PrimaryButton(label: '保存', loading: saving, onPressed: () async {
+                  final name = nameCtrl.text.trim();
+                  if (name.isEmpty) {
+                    setS(() => msg = '请填写姓名');
+                    return;
+                  }
+                  setS(() { saving = true; msg = null; });
+                  try {
+                    await adminService.updateUser(user.id, {
+                      'full_name': name,
+                      'role_id': selectedRoleId,
+                      'department_id': selectedDepartmentId,
+                      'is_active': isActive,
+                    });
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    _load();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('用户信息已更新'), backgroundColor: Color(0xFF059669)),
+                      );
+                    }
+                  } catch (e) {
+                    setS(() { saving = false; msg = e.toString(); });
+                  }
+                }),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ── Rules sheet ──
   void _showRulesSheet(User user) {
+    bool reqSignIn = user.requireSignIn;
+    bool reqSignOut = user.requireSignOut;
     bool reqLoc = user.requireLocation;
     bool reqTime = user.requireTime;
     bool reqFace = user.requireFace;
@@ -282,6 +458,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final radiusCtrl = TextEditingController(text: user.locationRadius?.toString() ?? '200');
     final startCtrl = TextEditingController(text: user.checkinTimeStart ?? '');
     final endCtrl = TextEditingController(text: user.checkinTimeEnd ?? '');
+    final signOutStartCtrl = TextEditingController(text: user.signOutTimeStart ?? '');
+    final signOutEndCtrl = TextEditingController(text: user.signOutTimeEnd ?? '');
     bool saving = false;
 
     showModalBottomSheet(
@@ -308,6 +486,22 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 const SizedBox(height: 20),
                 Text('打卡规则 - ${user.fullName}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1E293B))),
                 const SizedBox(height: 20),
+
+                // Sign in / Sign out
+                _RuleToggle(
+                  icon: Icons.login,
+                  label: '要求签到',
+                  value: reqSignIn,
+                  onChanged: (v) => setS(() => reqSignIn = v),
+                ),
+                const SizedBox(height: 16),
+                _RuleToggle(
+                  icon: Icons.logout,
+                  label: '要求签退',
+                  value: reqSignOut,
+                  onChanged: (v) => setS(() => reqSignOut = v),
+                ),
+                const SizedBox(height: 16),
 
                 // Location
                 _RuleToggle(
@@ -337,10 +531,20 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 ),
                 if (reqTime) ...[
                   const SizedBox(height: 12),
+                  const Text('签到时间窗口', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                  const SizedBox(height: 8),
                   Row(children: [
                     Expanded(child: AppTextField(label: '开始时间', controller: startCtrl, prefixIcon: Icons.login, hint: '09:00')),
                     const SizedBox(width: 10),
-                    Expanded(child: AppTextField(label: '结束时间', controller: endCtrl, prefixIcon: Icons.logout, hint: '18:00')),
+                    Expanded(child: AppTextField(label: '结束时间', controller: endCtrl, prefixIcon: Icons.logout, hint: '10:00')),
+                  ]),
+                  const SizedBox(height: 12),
+                  const Text('签退时间窗口', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: AppTextField(label: '开始时间', controller: signOutStartCtrl, prefixIcon: Icons.login, hint: '17:00')),
+                    const SizedBox(width: 10),
+                    Expanded(child: AppTextField(label: '结束时间', controller: signOutEndCtrl, prefixIcon: Icons.logout, hint: '18:00')),
                   ]),
                 ],
                 const SizedBox(height: 16),
@@ -358,6 +562,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   setS(() => saving = true);
                   try {
                     await adminService.updateUser(user.id, {
+                      'require_sign_in': reqSignIn,
+                      'require_sign_out': reqSignOut,
                       'require_location': reqLoc,
                       'location_lat': reqLoc && latCtrl.text.isNotEmpty ? double.tryParse(latCtrl.text) : null,
                       'location_lng': reqLoc && lngCtrl.text.isNotEmpty ? double.tryParse(lngCtrl.text) : null,
@@ -365,6 +571,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       'require_time': reqTime,
                       'checkin_time_start': reqTime ? startCtrl.text : null,
                       'checkin_time_end': reqTime ? endCtrl.text : null,
+                      'sign_out_time_start': reqTime ? signOutStartCtrl.text : null,
+                      'sign_out_time_end': reqTime ? signOutEndCtrl.text : null,
                       'require_face': reqFace,
                     });
                     if (ctx.mounted) Navigator.pop(ctx);
@@ -613,6 +821,18 @@ class _UserCard extends StatelessWidget {
                   Row(
                     children: [
                       Text('@${user.username}', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                      if (user.departmentName != null && user.departmentName!.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFFED7AA)),
+                          ),
+                          child: Text(user.departmentName!, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF9A3412))),
+                        ),
+                      ],
                       const SizedBox(width: 8),
                       _StatusBadge(active: user.isActive),
                       if (user.faceEnrolled) ...[

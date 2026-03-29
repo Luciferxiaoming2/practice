@@ -11,4 +11,6 @@ class CheckIn(Base):
     timestamp = Column(DateTime, default=datetime.now)
     lat = Column(Float, nullable=True)
     lng = Column(Float, nullable=True)
+    address = Column(String, nullable=True)
     status = Column(String, default="ok")   # ok | location_fail | time_fail | face_fail
+    type = Column(String, default="sign_in")  # sign_in | sign_out

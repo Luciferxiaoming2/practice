@@ -7,6 +7,8 @@ class User {
   final bool faceEnrolled;
   final int? roleId;
   final String? roleName;
+  final int? departmentId;
+  final String? departmentName;
   final bool requireLocation;
   final double? locationLat;
   final double? locationLng;
@@ -15,6 +17,10 @@ class User {
   final String? checkinTimeStart;
   final String? checkinTimeEnd;
   final bool requireFace;
+  final String? signOutTimeStart;
+  final String? signOutTimeEnd;
+  final bool requireSignIn;
+  final bool requireSignOut;
 
   User({
     required this.id,
@@ -25,6 +31,8 @@ class User {
     required this.faceEnrolled,
     this.roleId,
     this.roleName,
+    this.departmentId,
+    this.departmentName,
     required this.requireLocation,
     this.locationLat,
     this.locationLng,
@@ -33,6 +41,10 @@ class User {
     this.checkinTimeStart,
     this.checkinTimeEnd,
     required this.requireFace,
+    this.signOutTimeStart,
+    this.signOutTimeEnd,
+    this.requireSignIn = true,
+    this.requireSignOut = false,
   });
 
   factory User.fromJson(Map<String, dynamic> j) => User(
@@ -44,6 +56,8 @@ class User {
         faceEnrolled: j['face_enrolled'] ?? false,
         roleId: j['role_id'],
         roleName: (j['role'] is Map) ? j['role']['name'] : j['role_name'],
+        departmentId: j['department_id'],
+        departmentName: (j['department'] is Map) ? j['department']['name'] : j['department_name'],
         requireLocation: j['require_location'] ?? false,
         locationLat: (j['location_lat'] as num?)?.toDouble(),
         locationLng: (j['location_lng'] as num?)?.toDouble(),
@@ -52,6 +66,10 @@ class User {
         checkinTimeStart: j['checkin_time_start'],
         checkinTimeEnd: j['checkin_time_end'],
         requireFace: j['require_face'] ?? false,
+        signOutTimeStart: j['sign_out_time_start'],
+        signOutTimeEnd: j['sign_out_time_end'],
+        requireSignIn: j['require_sign_in'] ?? true,
+        requireSignOut: j['require_sign_out'] ?? false,
       );
 
   Map<String, dynamic> toJson() => {
@@ -63,6 +81,8 @@ class User {
         'face_enrolled': faceEnrolled,
         'role_id': roleId,
         'role_name': roleName,
+        'department_id': departmentId,
+        'department_name': departmentName,
         'require_location': requireLocation,
         'location_lat': locationLat,
         'location_lng': locationLng,
@@ -71,12 +91,22 @@ class User {
         'checkin_time_start': checkinTimeStart,
         'checkin_time_end': checkinTimeEnd,
         'require_face': requireFace,
+        'sign_out_time_start': signOutTimeStart,
+        'sign_out_time_end': signOutTimeEnd,
+        'require_sign_in': requireSignIn,
+        'require_sign_out': requireSignOut,
       };
 
   User copyWith({
     bool? isActive,
     bool? faceEnrolled,
     String? fullName,
+    int? departmentId,
+    String? departmentName,
+    String? signOutTimeStart,
+    String? signOutTimeEnd,
+    bool? requireSignIn,
+    bool? requireSignOut,
   }) =>
       User(
         id: id,
@@ -87,6 +117,8 @@ class User {
         faceEnrolled: faceEnrolled ?? this.faceEnrolled,
         roleId: roleId,
         roleName: roleName,
+        departmentId: departmentId ?? this.departmentId,
+        departmentName: departmentName ?? this.departmentName,
         requireLocation: requireLocation,
         locationLat: locationLat,
         locationLng: locationLng,
@@ -95,5 +127,9 @@ class User {
         checkinTimeStart: checkinTimeStart,
         checkinTimeEnd: checkinTimeEnd,
         requireFace: requireFace,
+        signOutTimeStart: signOutTimeStart ?? this.signOutTimeStart,
+        signOutTimeEnd: signOutTimeEnd ?? this.signOutTimeEnd,
+        requireSignIn: requireSignIn ?? this.requireSignIn,
+        requireSignOut: requireSignOut ?? this.requireSignOut,
       );
 }

@@ -1,14 +1,14 @@
 "use client"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, Users, UserCog, Shield, ClipboardList, LogOut, X } from "lucide-react"
+import { LayoutDashboard, Users, Shield, ClipboardList, Building2, LogOut, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 
 const nav = [
   { href: "/dashboard", label: "控制台", icon: LayoutDashboard },
-  { href: "/dashboard/accounts", label: "账户管理", icon: Users },
-  { href: "/dashboard/users", label: "用户管理", icon: UserCog },
+  { href: "/dashboard/accounts", label: "用户管理", icon: Users },
+  { href: "/dashboard/departments", label: "部门管理", icon: Building2 },
   { href: "/dashboard/roles", label: "角色管理", icon: Shield },
   { href: "/dashboard/checkins", label: "打卡记录", icon: ClipboardList },
 ]

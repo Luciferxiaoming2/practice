@@ -26,7 +26,16 @@ class User(Base):
     location_radius = Column(Float, nullable=True)   # metres
 
     require_time = Column(Boolean, default=False)
-    checkin_time_start = Column(String, nullable=True)  # "HH:MM"
-    checkin_time_end = Column(String, nullable=True)    # "HH:MM"
+    checkin_time_start = Column(String, nullable=True)   # 签到开始 "HH:MM"
+    checkin_time_end = Column(String, nullable=True)     # 签到结束 "HH:MM"
+    sign_out_time_start = Column(String, nullable=True)  # 签退开始 "HH:MM"
+    sign_out_time_end = Column(String, nullable=True)    # 签退结束 "HH:MM"
 
     require_face = Column(Boolean, default=True)
+
+    require_sign_in = Column(Boolean, default=True)
+    require_sign_out = Column(Boolean, default=False)
+
+    # 部门
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    department = relationship("Department", back_populates="users", lazy="joined")

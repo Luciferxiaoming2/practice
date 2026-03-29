@@ -4,17 +4,13 @@ setlocal enabledelayedexpansion
 
 REM ============================================================
 REM  ENDPAGE - Stop script (Windows local dev)
-REM
-REM  Usage:
-REM    1. Double-click stop.bat to stop all running services
-REM    2. Or run in terminal: stop.bat
-REM    3. Reads port info from .endpage.lock (written by start.bat)
 REM ============================================================
 
-set "PROJECT_ROOT=D:\practice\one"
+set "PROJECT_ROOT=%~dp0"
+set "PROJECT_ROOT=%PROJECT_ROOT:~0,-1%"
 set "LOCK_FILE=%PROJECT_ROOT%\.endpage.lock"
-set "BACKEND_PORT="
-set "FRONTEND_PORT="
+set "BACKEND_PORT=8000"
+set "FRONTEND_PORT=3000"
 
 echo.
 echo  ================================================
@@ -23,46 +19,52 @@ echo  ================================================
 echo.
 
 REM ---------- 1. Read lock file ----------
-if not exist "%LOCK_FILE%" goto :no_lock
+if exist "%LOCK_FILE%" (
+    for /f "tokens=1,* delims==" %%a in ('type "%LOCK_FILE%"') do (
+        if "%%a"=="BACKEND_PORT" set "BACKEND_PORT=%%b"
+        if "%%a"=="FRONTEND_PORT" set "FRONTEND_PORT=%%b"
+    )
+    echo  [INFO]  Ports: Backend=%BACKEND_PORT% / Frontend=%FRONTEND_PORT%
+) else (
+    echo  [INFO]  No lock file, using defaults: 8000/3000
+)
+echo.
 
-for /f "tokens=1,* delims==" %%a in ('type "%LOCK_FILE%"') do (
-    if "%%a"=="BACKEND_PORT" set "BACKEND_PORT=%%b"
-    if "%%a"=="FRONTEND_PORT" set "FRONTEND_PORT=%%b"
+REM ---------- 2. Stop by port ----------
+set "STOPPED=0"
+
+for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr /r ":%BACKEND_PORT% .*LISTENING"') do (
+    if not "%%a"=="0" (
+        echo  [STOP]  Killing Backend on port %BACKEND_PORT% ^(PID %%a^)
+        taskkill /PID %%a /T /F >nul 2>&1
+        set "STOPPED=1"
+    )
 )
 
-if not defined BACKEND_PORT goto :no_lock
-if not defined FRONTEND_PORT goto :no_lock
+for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr /r ":%FRONTEND_PORT% .*LISTENING"') do (
+    if not "%%a"=="0" (
+        echo  [STOP]  Killing Frontend on port %FRONTEND_PORT% ^(PID %%a^)
+        taskkill /PID %%a /T /F >nul 2>&1
+        set "STOPPED=1"
+    )
+)
 
-echo  [INFO]  Lock file found (Backend:%BACKEND_PORT% / Frontend:%FRONTEND_PORT%)
-echo.
-goto :do_stop
-
-:no_lock
-echo  [WARN]  Lock file not found, using default ports (8000/3000)
-set "BACKEND_PORT=8000"
-set "FRONTEND_PORT=3000"
-echo.
-
-:do_stop
-REM ---------- 2. Stop backend ----------
-set "STOPPED_SOMETHING=0"
-
-call :kill_on_port %BACKEND_PORT% Backend
-if !errorlevel!==0 set "STOPPED_SOMETHING=1"
-
-REM ---------- 3. Stop frontend ----------
-call :kill_on_port %FRONTEND_PORT% Frontend
-if !errorlevel!==0 set "STOPPED_SOMETHING=1"
-
-REM ---------- 4. Close ENDPAGE terminal windows ----------
+REM ---------- 3. Close named terminal windows ----------
 taskkill /FI "WINDOWTITLE eq ENDPAGE-Backend*" /F >nul 2>&1
 taskkill /FI "WINDOWTITLE eq ENDPAGE-Frontend*" /F >nul 2>&1
 
-REM ---------- 5. Clean up lock file ----------
+REM ---------- 4. Remove ADB forwarding ----------
+where adb >nul 2>&1
+if !errorlevel!==0 (
+    adb reverse --remove-all >nul 2>&1
+    echo  [OK]   ADB forwarding removed
+)
+
+REM ---------- 5. Clean up ----------
 if exist "%LOCK_FILE%" del "%LOCK_FILE%" >nul 2>&1
 
 echo.
-if "!STOPPED_SOMETHING!"=="1" (
+if "!STOPPED!"=="1" (
     echo  ================================================
     echo     All services stopped.
     echo  ================================================
@@ -73,28 +75,4 @@ if "!STOPPED_SOMETHING!"=="1" (
 )
 echo.
 timeout /t 3 /nobreak >nul
-exit /b 0
-
-REM ============================================================
-REM  Subroutines
-REM ============================================================
-
-:kill_on_port
-set "_KP=%~1"
-set "_KN=%~2"
-set "_FOUND=0"
-
-for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr /r ":%_KP% .*LISTENING"') do (
-    if not "%%a"=="0" (
-        set "_FOUND=1"
-        echo  [STOP]  Killing %_KN% on port %_KP% (PID %%a)...
-        taskkill /PID %%a /T /F >nul 2>&1
-    )
-)
-
-if "!_FOUND!"=="0" (
-    echo  [SKIP]  %_KN% not running on port %_KP%
-    exit /b 1
-)
-echo  [OK]   %_KN% stopped
 exit /b 0

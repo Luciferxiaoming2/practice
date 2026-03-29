@@ -41,7 +41,9 @@ export default function UserCheckinsPage() {
   const statusMap: Record<string, { label: string; variant: "success" | "destructive" | "warning" }> = {
     ok: { label: "正常", variant: "success" },
     location_fail: { label: "位置异常", variant: "destructive" },
-    time_fail: { label: "时间异常", variant: "warning" },
+    time_early: { label: "早到", variant: "warning" },
+    time_late: { label: "迟到", variant: "warning" },
+    time_fail: { label: "迟到", variant: "warning" },
     face_fail: { label: "人脸异常", variant: "destructive" },
   }
 
@@ -77,6 +79,7 @@ export default function UserCheckinsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-muted-foreground text-xs">
+                    <th className="px-5 py-3 text-left font-medium">类型</th>
                     <th className="px-5 py-3 text-left font-medium">打卡时间</th>
                     <th className="px-5 py-3 text-left font-medium">状态</th>
                     <th className="px-5 py-3 text-left font-medium">坐标</th>
@@ -87,6 +90,11 @@ export default function UserCheckinsPage() {
                     const s = statusMap[r.status] ?? { label: r.status, variant: "outline" as const }
                     return (
                       <motion.tr key={r.id} variants={staggerItem} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
+                        <td className="px-5 py-3">
+                          <Badge variant={r.type === "sign_out" ? "warning" : "success"}>
+                            {r.type === "sign_out" ? "签退" : "签到"}
+                          </Badge>
+                        </td>
                         <td className="px-5 py-3 font-mono text-xs">{fmtTime(r.timestamp)}</td>
                         <td className="px-5 py-3">
                           <Badge variant={s.variant}>{s.label}</Badge>

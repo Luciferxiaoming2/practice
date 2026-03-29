@@ -9,6 +9,7 @@ class UserCreate(BaseModel):
     password: str
     is_admin: bool = False
     role_id: Optional[int] = None
+    department_id: Optional[int] = None
 
 
 class UserUpdate(BaseModel):
@@ -16,6 +17,7 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
     role_id: Optional[int] = None
+    department_id: Optional[int] = None
     face_enrolled: Optional[bool] = None
     require_location: Optional[bool] = None
     location_lat: Optional[float] = None
@@ -24,7 +26,17 @@ class UserUpdate(BaseModel):
     require_time: Optional[bool] = None
     checkin_time_start: Optional[str] = None
     checkin_time_end: Optional[str] = None
+    sign_out_time_start: Optional[str] = None
+    sign_out_time_end: Optional[str] = None
     require_face: Optional[bool] = None
+    require_sign_in: Optional[bool] = None
+    require_sign_out: Optional[bool] = None
+
+
+class DepartmentBrief(BaseModel):
+    id: int
+    name: str
+    model_config = {"from_attributes": True}
 
 
 class UserOut(BaseModel):
@@ -36,6 +48,8 @@ class UserOut(BaseModel):
     face_enrolled: bool
     role_id: Optional[int]
     role: Optional[RoleBrief] = None
+    department_id: Optional[int] = None
+    department: Optional[DepartmentBrief] = None
     require_location: bool
     location_lat: Optional[float]
     location_lng: Optional[float]
@@ -43,7 +57,11 @@ class UserOut(BaseModel):
     require_time: bool
     checkin_time_start: Optional[str]
     checkin_time_end: Optional[str]
+    sign_out_time_start: Optional[str] = None
+    sign_out_time_end: Optional[str] = None
     require_face: bool
+    require_sign_in: bool
+    require_sign_out: bool
 
     model_config = {"from_attributes": True}
 

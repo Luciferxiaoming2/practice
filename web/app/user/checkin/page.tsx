@@ -15,6 +15,7 @@ export default function CheckinPage() {
   const [user, setUser] = useState<User | null>(null)
   const [todayRecord, setTodayRecord] = useState<CheckIn | null>(null)
   const [loading, setLoading] = useState(true)
+  const [checkinType, setCheckinType] = useState<"sign_in" | "sign_out">("sign_in")
 
   useEffect(() => {
     if (!userId) return
@@ -36,12 +37,14 @@ export default function CheckinPage() {
   }, [userId])
 
   async function handleCheckin(lat: number, lng: number) {
-    const record = await createCheckin({ lat, lng })
+    const record = await createCheckin({ lat, lng, type: checkinType })
     setTodayRecord(record)
     const statusMap: Record<string, string> = {
       ok: "打卡成功",
       location_fail: "打卡成功，但位置不在规定范围内",
-      time_fail: "打卡成功，但不在规定时间段内",
+      time_early: "打卡成功，早到",
+      time_late: "打卡成功，迟到",
+      time_fail: "打卡成功，迟到",
       face_fail: "打卡成功，但人脸验证未通过",
     }
     return {
@@ -69,6 +72,32 @@ export default function CheckinPage() {
             ? "请在指定位置范围内完成打卡"
             : "获取定位后即可打卡"}
         </p>
+      </motion.div>
+
+      {/* 签到/签退 类型选择 */}
+      <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="mb-4">
+        <div className="inline-flex rounded-xl bg-muted p-1">
+          <button
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+              checkinType === "sign_in"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setCheckinType("sign_in")}
+          >
+            签到
+          </button>
+          <button
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+              checkinType === "sign_out"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setCheckinType("sign_out")}
+          >
+            签退
+          </button>
+        </div>
       </motion.div>
 
       <AMapCheckin

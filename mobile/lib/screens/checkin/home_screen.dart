@@ -22,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _locationReady = false;
   late Timer _clockTimer;
   DateTime _now = DateTime.now();
+  String _checkinType = 'sign_in';
 
   @override
   void initState() {
@@ -74,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!passed) return;
     }
     final checkin = context.read<CheckinProvider>();
-    await checkin.doCheckin(_lat, _lng);
+    await checkin.doCheckin(_lat, _lng, type: _checkinType);
   }
 
   void _showFaceEnrollDialog() {
@@ -287,6 +288,70 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Text(
                         _todayStr(),
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF7C3AED)),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+                    // Sign-in / Sign-out toggle
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () => setState(() => _checkinType = 'sign_in'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _checkinType == 'sign_in'
+                                    ? const Color(0xFF7C3AED)
+                                    : const Color(0xFFF1F5F9),
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(11),
+                                  bottomLeft: Radius.circular(11),
+                                ),
+                              ),
+                              child: Text(
+                                '签到',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _checkinType == 'sign_in'
+                                      ? Colors.white
+                                      : const Color(0xFF334155),
+                                ),
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => setState(() => _checkinType = 'sign_out'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _checkinType == 'sign_out'
+                                    ? const Color(0xFF7C3AED)
+                                    : const Color(0xFFF1F5F9),
+                                borderRadius: const BorderRadius.only(
+                                  topRight: Radius.circular(11),
+                                  bottomRight: Radius.circular(11),
+                                ),
+                              ),
+                              child: Text(
+                                '签退',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _checkinType == 'sign_out'
+                                      ? Colors.white
+                                      : const Color(0xFF334155),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 

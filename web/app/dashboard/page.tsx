@@ -157,7 +157,7 @@ export default function DashboardPage() {
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{name} · {time}</p>
                           <p className={`text-xs ${isOk ? "text-green-600" : "text-orange-600"}`}>
-                            {isOk ? "正常签到" : c.status === "location_fail" ? "位置异常" : c.status === "time_fail" ? "时间异常" : "签到异常"}
+                            {isOk ? "正常签到" : c.status === "location_fail" ? "位置异常" : c.status === "time_early" ? "早到" : c.status === "time_late" || c.status === "time_fail" ? "迟到" : "签到异常"}
                           </p>
                         </div>
                       </Link>
@@ -249,7 +249,7 @@ export default function DashboardPage() {
           </Card>
         </motion.div>
 
-        {/* 平均打卡成功率 */}
+        {/* 按时打卡率 */}
         <motion.div variants={staggerItem}>
           <Card className="hover:shadow-md transition-shadow">
             <CardContent className="p-6 flex items-center gap-4">
@@ -257,7 +257,7 @@ export default function DashboardPage() {
                 <CheckCircle2 size={24} className="text-green-600" />
               </div>
               <div>
-                <p className="text-muted-foreground text-xs font-medium">平均打卡成功率</p>
+                <p className="text-muted-foreground text-xs font-medium">按时打卡率</p>
                 <p className="text-3xl font-bold mt-1">{successRate}%</p>
               </div>
             </CardContent>
@@ -374,7 +374,7 @@ export default function DashboardPage() {
                           <span className="text-xs text-muted-foreground flex-shrink-0">{time}</span>
                         </div>
                         <p className={`text-xs font-medium ${isOk ? "text-green-600" : "text-orange-600"}`}>
-                          {isOk ? "成功签到" : c.status === "location_fail" ? "位置异常" : c.status === "time_fail" ? "时间异常" : "签到异常"}
+                          {isOk ? "成功签到" : c.status === "location_fail" ? "位置异常" : c.status === "time_early" ? "早到" : c.status === "time_late" || c.status === "time_fail" ? "迟到" : "签到异常"}
                         </p>
                       </div>
                     </div>

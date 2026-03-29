@@ -29,12 +29,12 @@ class CheckinProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> doCheckin(double? lat, double? lng) async {
+  Future<void> doCheckin(double? lat, double? lng, {String type = 'sign_in'}) async {
     checkinLoading = true;
     checkinResult = null;
     notifyListeners();
     try {
-      final raw = await checkinService.createCheckin(lat: lat, lng: lng);
+      final raw = await checkinService.createCheckin(lat: lat, lng: lng, type: type);
       final record = CheckIn.fromJson(raw);
       records.insert(0, record);
       checkinSuccess = record.isSuccess;

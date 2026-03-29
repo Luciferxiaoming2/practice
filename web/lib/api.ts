@@ -99,6 +99,7 @@ export interface User {
   face_enrolled: boolean
   role_id: number | null
   role: RoleBrief | null
+  department_id: number | null
   require_location: boolean
   location_lat: number | null
   location_lng: number | null
@@ -106,7 +107,11 @@ export interface User {
   require_time: boolean
   checkin_time_start: string | null
   checkin_time_end: string | null
+  sign_out_time_start: string | null
+  sign_out_time_end: string | null
   require_face: boolean
+  require_sign_in: boolean
+  require_sign_out: boolean
 }
 
 export async function getUsers() {
@@ -125,6 +130,7 @@ export async function createUser(body: {
   password: string
   is_admin?: boolean
   role_id?: number
+  department_id?: number
 }) {
   const { data } = await api.post<User>("/users/", body)
   return data
@@ -155,9 +161,10 @@ export interface CheckIn {
   lat: number | null
   lng: number | null
   status: string
+  type: string
 }
 
-export async function createCheckin(body: { lat?: number; lng?: number; status?: string }) {
+export async function createCheckin(body: { lat?: number; lng?: number; status?: string; type?: string }) {
   const { data } = await api.post<CheckIn>("/checkins/", body)
   return data
 }
@@ -178,3 +185,16 @@ export async function deleteCheckin(id: number) {
 export async function batchDeleteCheckins(ids: number[]) {
   await api.post("/checkins/batch-delete", { ids })
 }
+
+// ── Departments ──────────────────────────────────────
+export interface Department {
+  id: number
+  name: string
+  description: string | null
+}
+
+export async function getDepartments() { return (await api.get<Department[]>("/departments/")).data }
+export async function createDepartment(data: { name: string; description?: string }) { return (await api.post<Department>("/departments/", data)).data }
+export async function updateDepartment(id: number, data: Partial<Department>) { return (await api.patch<Department>(`/departments/${id}`, data)).data }
+export async function deleteDepartment(id: number) { await api.delete(`/departments/${id}`) }
+export async function batchDepartmentRules(departmentId: number, rules: Record<string, any>) { await api.post(`/departments/${departmentId}/batch-rules`, rules) }

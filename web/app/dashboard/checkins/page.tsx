@@ -52,13 +52,15 @@ export default function CheckinsPage() {
 
   function fmtTime(ts: string) {
     const d = new Date(ts)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`
   }
 
   const statusMap: Record<string, { label: string; variant: "success" | "destructive" | "warning" }> = {
     ok: { label: "正常", variant: "success" },
     location_fail: { label: "位置异常", variant: "destructive" },
-    time_fail: { label: "时间异常", variant: "warning" },
+    time_early: { label: "早到", variant: "warning" },
+    time_late: { label: "迟到", variant: "warning" },
+    time_fail: { label: "迟到", variant: "warning" },
     face_fail: { label: "人脸异常", variant: "destructive" },
   }
 
@@ -106,14 +108,15 @@ export default function CheckinsPage() {
   }
 
   function handleExport() {
-    const header = "姓名,打卡时间,状态,纬度,经度"
+    const header = "姓名,类型,打卡时间,状态,纬度,经度"
     const rows = records.map((r) => {
       const name = userName(r.user_id)
+      const type = r.type === "sign_out" ? "签退" : "签到"
       const time = fmtTime(r.timestamp)
       const status = statusMap[r.status]?.label ?? r.status
       const lat = r.lat != null ? r.lat.toFixed(4) : ""
       const lng = r.lng != null ? r.lng.toFixed(4) : ""
-      return `${name},${time},${status},${lat},${lng}`
+      return `${name},${type},${time},${status},${lat},${lng}`
     })
     const csv = "\uFEFF" + [header, ...rows].join("\n")
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
@@ -156,8 +159,26 @@ export default function CheckinsPage() {
             <option key={u.id} value={u.id}>{u.full_name}</option>
           ))}
         </select>
-        <Input type="date" className="w-40" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-        <Input type="date" className="w-40" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">开始时间</span>
+          <input
+            type="date"
+            className="h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring w-44"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            lang="zh-CN"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">结束时间</span>
+          <input
+            type="date"
+            className="h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring w-44"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            lang="zh-CN"
+          />
+        </div>
         <Button variant="outline" leftIcon={<Search size={14} />} onClick={load}>筛选</Button>
       </motion.div>
 
@@ -187,6 +208,7 @@ export default function CheckinsPage() {
                       />
                     </th>
                     <th className="px-5 py-3 text-left font-medium">姓名</th>
+                    <th className="px-5 py-3 text-left font-medium">类型</th>
                     <th className="px-5 py-3 text-left font-medium">打卡时间</th>
                     <th className="px-5 py-3 text-left font-medium">状态</th>
                     <th className="px-5 py-3 text-left font-medium">坐标</th>
@@ -207,6 +229,11 @@ export default function CheckinsPage() {
                           />
                         </td>
                         <td className="px-5 py-3">{userName(r.user_id)}</td>
+                        <td className="px-5 py-3">
+                          <Badge variant={r.type === "sign_out" ? "warning" : "success"}>
+                            {r.type === "sign_out" ? "签退" : "签到"}
+                          </Badge>
+                        </td>
                         <td className="px-5 py-3 font-mono text-xs">{fmtTime(r.timestamp)}</td>
                         <td className="px-5 py-3">
                           <Badge variant={s.variant}>{s.label}</Badge>

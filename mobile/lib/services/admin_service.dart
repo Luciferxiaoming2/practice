@@ -16,6 +16,7 @@ class AdminService {
     required String fullName,
     required String password,
     int? roleId,
+    int? departmentId,
   }) async {
     try {
       final res = await dio.post('/users/', data: {
@@ -23,6 +24,7 @@ class AdminService {
         'full_name': fullName,
         'password': password,
         if (roleId != null) 'role_id': roleId,
+        if (departmentId != null) 'department_id': departmentId,
       });
       return Map<String, dynamic>.from(res.data);
     } on DioException catch (e) {
@@ -85,6 +87,52 @@ class AdminService {
       await dio.delete('/checkins/$id');
     } on DioException catch (e) {
       throw _handleError(e, fallback: '删除记录失败');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getDepartments() async {
+    try {
+      final res = await dio.get('/departments/');
+      return List<Map<String, dynamic>>.from(res.data);
+    } on DioException catch (e) {
+      throw _handleError(e, fallback: '获取部门列表失败');
+    }
+  }
+
+  Future<Map<String, dynamic>> createDepartment(String name, String? description) async {
+    try {
+      final res = await dio.post('/departments/', data: {
+        'name': name,
+        if (description != null) 'description': description,
+      });
+      return Map<String, dynamic>.from(res.data);
+    } on DioException catch (e) {
+      throw _handleError(e, fallback: '创建部门失败');
+    }
+  }
+
+  Future<Map<String, dynamic>> updateDepartment(int id, Map<String, dynamic> data) async {
+    try {
+      final res = await dio.patch('/departments/$id', data: data);
+      return Map<String, dynamic>.from(res.data);
+    } on DioException catch (e) {
+      throw _handleError(e, fallback: '更新部门失败');
+    }
+  }
+
+  Future<void> deleteDepartment(int id) async {
+    try {
+      await dio.delete('/departments/$id');
+    } on DioException catch (e) {
+      throw _handleError(e, fallback: '删除部门失败');
+    }
+  }
+
+  Future<void> batchDepartmentRules(int departmentId, Map<String, dynamic> rules) async {
+    try {
+      await dio.post('/departments/$departmentId/batch-rules', data: rules);
+    } on DioException catch (e) {
+      throw _handleError(e, fallback: '批量设置规则失败');
     }
   }
 

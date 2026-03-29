@@ -1,18 +1,19 @@
 "use client"
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Plus, RotateCcw, ScanFace, Loader2, Settings, Pencil, Trash2, X, MapPin, Clock, ScanLine, ChevronDown } from "lucide-react"
+import { Plus, RotateCcw, ScanFace, Loader2, Settings, Pencil, Trash2, X, MapPin, Clock, ScanLine, ChevronDown, LogIn, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { staggerContainer, staggerItem, fadeInUp } from "@/lib/motion"
-import { getUsers, createUser, resetPassword, resetFace, updateUser, deleteUser, getRoles, type User, type Role } from "@/lib/api"
+import { getUsers, createUser, resetPassword, resetFace, updateUser, deleteUser, getRoles, getDepartments, type User, type Role, type Department } from "@/lib/api"
 import LocationPicker from "@/components/admin/LocationPicker"
 
 export default function AccountsPage() {
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [editUser, setEditUser] = useState<User | null>(null)
@@ -25,9 +26,10 @@ export default function AccountsPage() {
 
   async function load() {
     try {
-      const [u, r] = await Promise.all([getUsers(), getRoles()])
+      const [u, r, d] = await Promise.all([getUsers(), getRoles(), getDepartments()])
       setUsers(u)
       setRoles(r)
+      setDepartments(d)
     } finally {
       setLoading(false)
     }
@@ -98,6 +100,7 @@ export default function AccountsPage() {
                     <th className="px-5 py-3 text-left font-medium">账号</th>
                     <th className="px-5 py-3 text-left font-medium">姓名</th>
                     <th className="px-5 py-3 text-left font-medium">角色</th>
+                    <th className="px-5 py-3 text-left font-medium">部门</th>
                     <th className="px-5 py-3 text-left font-medium">状态</th>
                     <th className="px-5 py-3 text-left font-medium">人脸</th>
                     <th className="px-5 py-3 text-left font-medium">打卡规则</th>
@@ -113,6 +116,9 @@ export default function AccountsPage() {
                         <Badge variant={u.is_admin ? "default" : "outline"}>
                           {u.role?.name ?? (u.is_admin ? "管理员" : "普通用户")}
                         </Badge>
+                      </td>
+                      <td className="px-5 py-3 text-muted-foreground">
+                        {departments.find((d) => d.id === u.department_id)?.name ?? "—"}
                       </td>
                       <td className="px-5 py-3">
                         <Badge variant={u.is_active ? "success" : "warning"}>
@@ -178,12 +184,12 @@ export default function AccountsPage() {
 
       {/* 新建账户弹窗 */}
       {showCreate && (
-        <CreateModal roles={roles} onClose={() => setShowCreate(false)} onCreated={load} />
+        <CreateModal roles={roles} departments={departments} onClose={() => setShowCreate(false)} onCreated={load} />
       )}
 
-      {/* 编辑账户弹窗（角色+状态） */}
+      {/* 编辑账户弹窗（角色+状态+部门） */}
       {editUser && (
-        <EditModal user={editUser} roles={roles} onClose={() => setEditUser(null)} onSaved={load} />
+        <EditModal user={editUser} roles={roles} departments={departments} onClose={() => setEditUser(null)} onSaved={load} />
       )}
 
       {/* 重置密码弹窗 */}
@@ -224,10 +230,11 @@ export default function AccountsPage() {
 }
 
 /* ── 新建账户弹窗 ────────────────────────────────────── */
-function CreateModal({ roles, onClose, onCreated }: { roles: Role[]; onClose: () => void; onCreated: () => void }) {
+function CreateModal({ roles, departments, onClose, onCreated }: { roles: Role[]; departments: Department[]; onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({
     username: "", full_name: "", password: "", confirm: "",
     role_id: (roles[0]?.id ?? null) as number | null,
+    department_id: null as number | null,
   })
   const [submitting, setSubmitting] = useState(false)
   const [msg, setMsg] = useState("")
@@ -258,6 +265,7 @@ function CreateModal({ roles, onClose, onCreated }: { roles: Role[]; onClose: ()
         full_name: form.full_name,
         password: form.password,
         role_id: form.role_id ?? undefined,
+        department_id: form.department_id ?? undefined,
       })
       onCreated()
       onClose()
@@ -285,14 +293,24 @@ function CreateModal({ roles, onClose, onCreated }: { roles: Role[]; onClose: ()
               required />
           </Field>
         </div>
-        <Field label="角色">
-          <SelectField
-            value={form.role_id}
-            onChange={(v) => setForm({ ...form, role_id: v ? Number(v) : null })}
-            options={roles.map((r) => ({ value: r.id, label: r.name }))}
-            placeholder="未分配角色"
-          />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="角色">
+            <SelectField
+              value={form.role_id}
+              onChange={(v) => setForm({ ...form, role_id: v ? Number(v) : null })}
+              options={roles.map((r) => ({ value: r.id, label: r.name }))}
+              placeholder="未分配角色"
+            />
+          </Field>
+          <Field label="部门">
+            <SelectField
+              value={form.department_id}
+              onChange={(v) => setForm({ ...form, department_id: v ? Number(v) : null })}
+              options={departments.map((d) => ({ value: d.id, label: d.name }))}
+              placeholder="未分配部门"
+            />
+          </Field>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Field label="初始密码" error={fieldErrors.password}>
             <Input type="password" placeholder="至少 8 位" value={form.password}
@@ -318,11 +336,12 @@ function CreateModal({ roles, onClose, onCreated }: { roles: Role[]; onClose: ()
 }
 
 /* ── 编辑账户弹窗（角色+状态） ────────────────────────── */
-function EditModal({ user, roles, onClose, onSaved }: { user: User; roles: Role[]; onClose: () => void; onSaved: () => void }) {
+function EditModal({ user, roles, departments, onClose, onSaved }: { user: User; roles: Role[]; departments: Department[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({
     full_name: user.full_name,
     is_active: user.is_active,
     role_id: user.role_id as number | null,
+    department_id: (user.department_id ?? null) as number | null,
   })
   const [saving, setSaving] = useState(false)
   const [errMsg, setErrMsg] = useState("")
@@ -336,6 +355,7 @@ function EditModal({ user, roles, onClose, onSaved }: { user: User; roles: Role[
         full_name: form.full_name,
         is_active: form.is_active,
         role_id: form.role_id,
+        department_id: form.department_id,
       })
       onSaved()
       onClose()
@@ -358,6 +378,14 @@ function EditModal({ user, roles, onClose, onSaved }: { user: User; roles: Role[
             placeholder="未分配角色"
           />
         </Field>
+        <Field label="部门">
+          <SelectField
+            value={form.department_id}
+            onChange={(v) => setForm({ ...form, department_id: v ? Number(v) : null })}
+            options={departments.map((d) => ({ value: d.id, label: d.name }))}
+            placeholder="未分配部门"
+          />
+        </Field>
         <Toggle checked={form.is_active} label="账户已激活" onChange={(v) => setForm({ ...form, is_active: v })} />
         {errMsg && <p className="text-destructive text-xs">{errMsg}</p>}
         <div className="flex justify-end gap-2 pt-3 border-t border-border">
@@ -372,6 +400,8 @@ function EditModal({ user, roles, onClose, onSaved }: { user: User; roles: Role[
 /* ── 打卡规则弹窗 ────────────────────────────────────── */
 function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => void; onSaved: () => void }) {
   const [rules, setRules] = useState({
+    require_sign_in: user.require_sign_in,
+    require_sign_out: user.require_sign_out,
     require_location: user.require_location,
     location_lat: user.location_lat ?? "",
     location_lng: user.location_lng ?? "",
@@ -379,6 +409,8 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
     require_time: user.require_time,
     checkin_time_start: user.checkin_time_start ?? "",
     checkin_time_end: user.checkin_time_end ?? "",
+    sign_out_time_start: user.sign_out_time_start ?? "",
+    sign_out_time_end: user.sign_out_time_end ?? "",
     require_face: user.require_face,
   })
   const [saving, setSaving] = useState(false)
@@ -388,6 +420,8 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
     setSaving(true)
     try {
       await updateUser(user.id, {
+        require_sign_in: rules.require_sign_in,
+        require_sign_out: rules.require_sign_out,
         require_location: rules.require_location,
         location_lat: rules.location_lat === "" ? null : Number(rules.location_lat),
         location_lng: rules.location_lng === "" ? null : Number(rules.location_lng),
@@ -395,6 +429,8 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
         require_time: rules.require_time,
         checkin_time_start: rules.checkin_time_start || null,
         checkin_time_end: rules.checkin_time_end || null,
+        sign_out_time_start: rules.sign_out_time_start || null,
+        sign_out_time_end: rules.sign_out_time_end || null,
         require_face: rules.require_face,
       })
       onSaved()
@@ -407,6 +443,14 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
   return (
     <Modal title={`打卡规则 — ${user.full_name}`} onClose={onClose} wide>
       <form className="space-y-3" onSubmit={handleSave}>
+        {/* 签到 */}
+        <Toggle checked={rules.require_sign_in} icon={<LogIn size={16} />} label="要求签到"
+          onChange={(v) => setRules({ ...rules, require_sign_in: v })} />
+
+        {/* 签退 */}
+        <Toggle checked={rules.require_sign_out} icon={<LogOut size={16} />} label="要求签退"
+          onChange={(v) => setRules({ ...rules, require_sign_out: v })} />
+
         {/* 地点打卡 */}
         <div className="space-y-3">
           <Toggle checked={rules.require_location} icon={<MapPin size={16} />} label="要求地点打卡"
@@ -442,16 +486,32 @@ function RulesModal({ user, onClose, onSaved }: { user: User; onClose: () => voi
           <Toggle checked={rules.require_time} icon={<Clock size={16} />} label="要求时间段打卡"
             onChange={(v) => setRules({ ...rules, require_time: v })} />
           {rules.require_time && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="pl-2 border-l-2 border-primary/20 ml-2">
-              <div className="grid grid-cols-2 gap-2 pl-3">
-                <Field label="开始时间">
-                  <Input type="time" value={rules.checkin_time_start}
-                    onChange={(e) => setRules({ ...rules, checkin_time_start: e.target.value })} />
-                </Field>
-                <Field label="结束时间">
-                  <Input type="time" value={rules.checkin_time_end}
-                    onChange={(e) => setRules({ ...rules, checkin_time_end: e.target.value })} />
-                </Field>
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="pl-2 border-l-2 border-primary/20 ml-2 space-y-3">
+              <div className="pl-3">
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">签到时间窗口</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="签到开始">
+                    <Input type="time" value={rules.checkin_time_start}
+                      onChange={(e) => setRules({ ...rules, checkin_time_start: e.target.value })} />
+                  </Field>
+                  <Field label="签到结束">
+                    <Input type="time" value={rules.checkin_time_end}
+                      onChange={(e) => setRules({ ...rules, checkin_time_end: e.target.value })} />
+                  </Field>
+                </div>
+              </div>
+              <div className="pl-3">
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">签退时间窗口</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="签退开始">
+                    <Input type="time" value={rules.sign_out_time_start}
+                      onChange={(e) => setRules({ ...rules, sign_out_time_start: e.target.value })} />
+                  </Field>
+                  <Field label="签退结束">
+                    <Input type="time" value={rules.sign_out_time_end}
+                      onChange={(e) => setRules({ ...rules, sign_out_time_end: e.target.value })} />
+                  </Field>
+                </div>
               </div>
             </motion.div>
           )}

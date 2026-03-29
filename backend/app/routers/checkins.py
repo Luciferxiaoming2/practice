@@ -1,4 +1,5 @@
 import math
+import httpx
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -12,6 +13,25 @@ from app.core import get_current_user, require_admin
 
 router = APIRouter(prefix="/checkins", tags=["checkins"])
 
+AMAP_KEY = "7a42d2010d005df07a5438a2d1b59cd7"
+
+
+def _reverse_geocode(lat: float, lng: float) -> str | None:
+    """调用高德逆地理编码 API，将经纬度转为地址"""
+    try:
+        resp = httpx.get(
+            "https://restapi.amap.com/v3/geocode/regeo",
+            params={"location": f"{lng},{lat}", "key": AMAP_KEY, "radius": 200},
+            timeout=5,
+        )
+        data = resp.json()
+        if data.get("status") == "1" and data.get("regeocode"):
+            addr = data["regeocode"].get("formatted_address", "")
+            return addr if addr else None
+    except Exception:
+        pass
+    return None
+
 
 def _haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """计算两点间距离（米）"""
@@ -24,7 +44,13 @@ def _haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def _check_status(user: User, lat: Optional[float], lng: Optional[float]) -> str:
+def _minutes_of(hhmm: str) -> int:
+    """将 HH:MM 转为当日分钟数"""
+    h, m = hhmm.split(":")
+    return int(h) * 60 + int(m)
+
+
+def _check_status(user: User, lat: Optional[float], lng: Optional[float], checkin_type: str = "sign_in") -> str:
     """根据用户打卡规则自动判定打卡状态"""
     # 位置校验
     if user.require_location:
@@ -35,20 +61,36 @@ def _check_status(user: User, lat: Optional[float], lng: Optional[float]) -> str
             if dist > user.location_radius:
                 return "location_fail"
 
-    # 时间校验
+    # 时间校验：签到和签退使用不同的时间窗口，允许提前1小时
     if user.require_time:
-        now = datetime.now().strftime("%H:%M")
-        start = user.checkin_time_start
-        end = user.checkin_time_end
+        now_str = datetime.now().strftime("%H:%M")
+        now_min = _minutes_of(now_str)
+        if checkin_type == "sign_out":
+            start = user.sign_out_time_start
+            end = user.sign_out_time_end
+        else:
+            start = user.checkin_time_start
+            end = user.checkin_time_end
         if start and end:
-            if start <= end:
-                # 正常时间窗：如 08:00 ~ 18:00
-                if not (start <= now <= end):
-                    return "time_fail"
+            s_min = _minutes_of(start)
+            e_min = _minutes_of(end)
+            early_min = s_min - 60  # 允许提前1小时
+
+            if s_min <= e_min:
+                # 正常时间窗
+                if now_min < early_min:
+                    return "time_early"  # 早到（提前超过1小时）
+                elif now_min < s_min:
+                    return "ok"  # 提前1小时内，允许
+                elif now_min > e_min:
+                    return "time_late"   # 迟到
             else:
-                # 跨午夜时间窗：如 22:00 ~ 06:00
-                if not (now >= start or now <= end):
-                    return "time_fail"
+                # 跨午夜
+                if not (now_min >= early_min or now_min <= e_min):
+                    if now_min < early_min:
+                        return "time_early"
+                    else:
+                        return "time_late"
 
     return "ok"
 
@@ -69,13 +111,20 @@ def create_checkin(
         raise HTTPException(status_code=404, detail="用户不存在")
 
     # 自动判定打卡状态（客户端传的 status 作为参考，服务端重新校验）
-    status = _check_status(user, body.lat, body.lng)
+    status = _check_status(user, body.lat, body.lng, checkin_type=body.type)
+
+    # 逆地理编码获取地址
+    address = None
+    if body.lat is not None and body.lng is not None:
+        address = _reverse_geocode(body.lat, body.lng)
 
     record = CheckIn(
         user_id=target_id,
         lat=body.lat,
         lng=body.lng,
+        address=address,
         status=status,
+        type=body.type,
     )
     db.add(record)
     db.commit()
@@ -124,7 +173,9 @@ def list_checkins(
             timestamp=r.timestamp,
             lat=r.lat,
             lng=r.lng,
+            address=r.address,
             status=r.status,
+            type=getattr(r, 'type', 'sign_in'),
         )
         for r in records
     ]

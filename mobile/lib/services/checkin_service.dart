@@ -2,11 +2,12 @@ import 'package:dio/dio.dart';
 import '../core/api.dart' show dio;
 
 class CheckinService {
-  Future<Map<String, dynamic>> createCheckin({double? lat, double? lng}) async {
+  Future<Map<String, dynamic>> createCheckin({double? lat, double? lng, String type = 'sign_in'}) async {
     try {
       final res = await dio.post('/checkins/', data: {
         'lat': lat,
         'lng': lng,
+        'type': type,
       });
       return Map<String, dynamic>.from(res.data);
     } on DioException catch (e) {

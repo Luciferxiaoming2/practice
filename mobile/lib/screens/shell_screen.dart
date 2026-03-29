@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// 管理员底部导航 Shell: 账户管理 | 打卡记录 | 打卡 | 我的
+/// 管理员底部导航 Shell: 管理 | 记录 | 部门 | 打卡 | 我的
 class AdminShellScreen extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
   const AdminShellScreen({super.key, required this.navigationShell});
@@ -35,6 +35,11 @@ class AdminShellScreen extends StatelessWidget {
               icon: Icon(Icons.list_alt_outlined),
               selectedIcon: Icon(Icons.list_alt, size: 26),
               label: '记录',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.business_outlined),
+              selectedIcon: Icon(Icons.business, size: 26),
+              label: '部门',
             ),
             NavigationDestination(
               icon: Icon(Icons.fingerprint),
