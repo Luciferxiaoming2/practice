@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/checkin_provider.dart';
 import '../../widgets/shared_widgets.dart';
 import '../../widgets/app_text_field.dart';
 
@@ -225,6 +226,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     // Logout
                     GestureDetector(
                       onTap: () async {
+                        // 清除所有Provider状态
+                        context.read<CheckinProvider>().clearAllState();
                         await auth.logout();
                         if (context.mounted) context.go('/login');
                       },

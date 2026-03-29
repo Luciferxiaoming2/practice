@@ -64,7 +64,20 @@ class CheckinProvider extends ChangeNotifier {
 
   void clearCheckinResult() {
     checkinResult = null;
+    checkinSuccess = false;
     notifyListeners();
+  }
+
+  // 清除所有状态（用于切换用户）
+  void clearAllState() {
+    records = [];
+    loading = false;
+    error = null;
+    checkinLoading = false;
+    checkinResult = null;
+    checkinSuccess = false;
+    filterDateFrom = null;
+    filterDateTo = null;
   }
 
   String _fmt(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';

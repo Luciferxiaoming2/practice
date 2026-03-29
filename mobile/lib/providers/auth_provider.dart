@@ -127,6 +127,13 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // 清除所有状态（用于切换用户）
+  void clearAllState() {
+    currentUser = null;
+    loading = false;
+    error = null;
+  }
+
   int _parseUserIdFromJwt(String token) {
     final parts = token.split('.');
     final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));

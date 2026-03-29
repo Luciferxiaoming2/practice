@@ -45,11 +45,20 @@ def create_user(body: UserCreate, db: Session = Depends(get_db), _=Depends(requi
         role_name = "管理员" if body.is_admin else "普通用户"
         role = db.query(Role).filter(Role.name == role_name).first()
         role_id = role.id if role else None
+    
+    # 验证部门是否存在
+    if body.department_id is not None:
+        from app.models.department import Department
+        dept = db.query(Department).filter(Department.id == body.department_id).first()
+        if not dept:
+            raise HTTPException(status_code=400, detail="部门不存在")
+    
     user = User(
         username=body.username,
         full_name=body.full_name,
         hashed_password=hash_password(body.password),
         role_id=role_id,
+        department_id=body.department_id,
     )
     _sync_is_admin(user, db)
     db.add(user)

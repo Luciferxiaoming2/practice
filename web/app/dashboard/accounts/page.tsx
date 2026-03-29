@@ -118,7 +118,7 @@ export default function AccountsPage() {
                         </Badge>
                       </td>
                       <td className="px-5 py-3 text-muted-foreground">
-                        {departments.find((d) => d.id === u.department_id)?.name ?? "—"}
+                        {u.department?.name ?? departments.find((d) => d.id === u.department_id)?.name ?? "—"}
                       </td>
                       <td className="px-5 py-3">
                         <Badge variant={u.is_active ? "success" : "warning"}>
@@ -305,7 +305,7 @@ function CreateModal({ roles, departments, onClose, onCreated }: { roles: Role[]
           <Field label="部门">
             <SelectField
               value={form.department_id}
-              onChange={(v) => setForm({ ...form, department_id: v ? Number(v) : null })}
+              onChange={(v) => setForm({ ...form, department_id: v && v !== "" ? Number(v) : null })}
               options={departments.map((d) => ({ value: d.id, label: d.name }))}
               placeholder="未分配部门"
             />

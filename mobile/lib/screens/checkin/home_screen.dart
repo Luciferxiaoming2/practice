@@ -31,6 +31,17 @@ class _HomeScreenState extends State<HomeScreen> {
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _now = DateTime.now());
     });
+    // 进入页面时检查今日打卡状态
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkTodayCheckin();
+    });
+  }
+
+  Future<void> _checkTodayCheckin() async {
+    final checkin = context.read<CheckinProvider>();
+    final today = DateTime.now();
+    final dateStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    await checkin.loadHistory(dateFrom: dateStr, dateTo: dateStr);
   }
 
   Future<void> _initLocation() async {
@@ -428,7 +439,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: _CheckInButton(
                 state: checkin.checkinLoading
                     ? _CheckInState.scanning
-                    : (checkin.checkinSuccess && checkin.checkinResult != null)
+                    : (_hasTodayCheckin(checkin) || (checkin.checkinSuccess && checkin.checkinResult != null))
                         ? _CheckInState.success
                         : _CheckInState.idle,
                 onTap: _doCheckin,
@@ -443,6 +454,19 @@ class _HomeScreenState extends State<HomeScreen> {
   String _todayStr() {
     const weeks = ['一', '二', '三', '四', '五', '六', '日'];
     return '${_now.month}月${_now.day}日 周${weeks[_now.weekday - 1]}';
+  }
+
+  bool _hasTodayCheckin(CheckinProvider checkin) {
+    if (checkin.records.isEmpty) return false;
+    final today = DateTime.now();
+    final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    
+    // 检查是否有今天的打卡记录（根据当前选择的类型）
+    return checkin.records.any((r) {
+      final recordDate = r.timestamp.toIso8601String().substring(0, 10);
+      final recordType = r.type ?? 'sign_in';
+      return recordDate == todayStr && recordType == _checkinType;
+    });
   }
 }
 
