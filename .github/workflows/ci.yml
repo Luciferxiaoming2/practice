@@ -73,4 +73,4 @@ jobs:
         run: python -c "from app.main import app; print('OK')"
 
       - name: Run tests
-        run: pytest -v --tb=short || true
+        run: pytest -v --tb=short
